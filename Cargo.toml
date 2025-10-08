@@ -1,0 +1,13 @@
+[package]
+name = "zk-IVF-PQ"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+name = "zk_IVF_PQ"
+crate-type = ["cdylib"]
+
+[dependencies]
+plonky2 = "1.1.0"
+pyo3 = "0.25.0"
