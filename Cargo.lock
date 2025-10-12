@@ -713,6 +713,7 @@ dependencies = [
 name = "zk-IVF-PQ"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "plonky2",
  "pyo3",
 ]

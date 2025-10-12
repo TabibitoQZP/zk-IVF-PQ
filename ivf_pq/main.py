@@ -1,3 +1,3 @@
-from zk_IVF_PQ.zk_IVF_PQ import sum_as_string
+from zk_IVF_PQ.zk_IVF_PQ import single_hash
 
-print(sum_as_string(1, 2))
+print(single_hash([222, 111]))

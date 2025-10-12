@@ -9,5 +9,6 @@ name = "zk_IVF_PQ"
 crate-type = ["cdylib"]
 
 [dependencies]
+anyhow = "1"
 plonky2 = "1.1.0"
 pyo3 = "0.25.0"
