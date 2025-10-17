@@ -1,54 +1,39 @@
-use plonky2::field::goldilocks_field::GoldilocksField as F;
-use plonky2::field::types::{Field, PrimeField64};
-use plonky2::hash::hash_types::HashOut;
-use plonky2::hash::poseidon::PoseidonHash;
-use plonky2::plonk::config::Hasher;
+// 有pub会给外部crate用, 无pub是给内部crate用
+pub mod hash_gadgets;
+pub mod kmeans_gadgets;
+pub mod prelude;
+pub mod prove;
+
+use crate::hash_gadgets::hash_u64;
+use crate::kmeans_gadgets::kmeans_prove;
 use pyo3::prelude::*;
-
-// 引入 prove.rs 模块
-mod prove;
-
-fn poseidon_single_u64(inputs: Vec<u64>) -> u64 {
-    let elems: Vec<F> = inputs.into_iter().map(F::from_canonical_u64).collect();
-    let out: HashOut<F> = PoseidonHash::hash_no_pad(&elems);
-    out.elements[0].to_canonical_u64()
-}
 
 #[pyfunction]
 fn single_hash(input: Vec<u64>) -> PyResult<u64> {
-    Ok(poseidon_single_u64(input))
+    Ok(hash_u64(input))
 }
 
 #[pyfunction]
-fn step1prove(inputs: Vec<Vec<u64>>) -> PyResult<Vec<u64>> {
-    let outputs = inputs.into_iter().map(poseidon_single_u64).collect();
-    Ok(outputs)
+fn py_kmeans_prove(
+    src_vecs: Vec<Vec<u64>>,
+    query: Vec<u64>,
+    root: u64,
+    sorted_idx_dis: Vec<Vec<u64>>,
+) -> PyResult<bool> {
+    let corr = kmeans_prove(src_vecs, query, root, sorted_idx_dis).is_ok();
+    Ok(corr)
 }
 
 #[pyfunction]
 fn batch_hash(inputs: Vec<Vec<u64>>) -> PyResult<Vec<u64>> {
-    let outputs = inputs.into_iter().map(poseidon_single_u64).collect();
+    let outputs = inputs.into_iter().map(hash_u64).collect();
     Ok(outputs)
-}
-
-#[pyfunction]
-fn verify_ids_sorted_by_distance(
-    centroids: Vec<Vec<u64>>,
-    x: Vec<u64>,
-    ids: Vec<u64>,
-) -> PyResult<bool> {
-    match prove::prove_ids_sorted_by_distance(centroids, x, ids) {
-        Ok((_proof, _data)) => Ok(true),
-        Err(e) => Err(pyo3::exceptions::PyValueError::new_err(format!(
-            "proof failed: {e}"
-        ))),
-    }
 }
 
 #[pymodule]
 fn zk_IVF_PQ(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(single_hash, m)?)?;
     m.add_function(wrap_pyfunction!(batch_hash, m)?)?;
-    m.add_function(wrap_pyfunction!(verify_ids_sorted_by_distance, m)?)?;
+    m.add_function(wrap_pyfunction!(py_kmeans_prove, m)?)?;
     Ok(())
 }
