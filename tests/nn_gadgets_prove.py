@@ -1,5 +1,5 @@
 import numpy as np
-from zk_IVF_PQ.zk_IVF_PQ import py_kmeans_prove, single_hash
+from zk_IVF_PQ.zk_IVF_PQ import py_nn_prove, single_hash
 
 N = 1024
 D = 1024
@@ -35,5 +35,5 @@ if __name__ == "__main__":
     root = merkle_root(src_vecs)
 
     print(sorted_idx_dis.dtype)
-    res = py_kmeans_prove(src_vecs, query, root, sorted_idx_dis)
+    res = py_nn_prove(src_vecs, query, root, sorted_idx_dis)
     print(res)

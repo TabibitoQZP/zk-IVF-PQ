@@ -1,11 +1,11 @@
 // 有pub会给外部crate用, 无pub是给内部crate用
 pub mod hash_gadgets;
-pub mod kmeans_gadgets;
+pub mod nn_gadgets;
 pub mod prelude;
 pub mod prove;
 
 use crate::hash_gadgets::hash_u64;
-use crate::kmeans_gadgets::kmeans_prove;
+use crate::nn_gadgets::nn_prove;
 use pyo3::prelude::*;
 
 #[pyfunction]
@@ -14,13 +14,13 @@ fn single_hash(input: Vec<u64>) -> PyResult<u64> {
 }
 
 #[pyfunction]
-fn py_kmeans_prove(
+fn py_nn_prove(
     src_vecs: Vec<Vec<u64>>,
     query: Vec<u64>,
     root: u64,
     sorted_idx_dis: Vec<Vec<u64>>,
 ) -> PyResult<bool> {
-    let corr = kmeans_prove(src_vecs, query, root, sorted_idx_dis).is_ok();
+    let corr = nn_prove(src_vecs, query, root, sorted_idx_dis).is_ok();
     Ok(corr)
 }
 
@@ -34,6 +34,6 @@ fn batch_hash(inputs: Vec<Vec<u64>>) -> PyResult<Vec<u64>> {
 fn zk_IVF_PQ(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(single_hash, m)?)?;
     m.add_function(wrap_pyfunction!(batch_hash, m)?)?;
-    m.add_function(wrap_pyfunction!(py_kmeans_prove, m)?)?;
+    m.add_function(wrap_pyfunction!(py_nn_prove, m)?)?;
     Ok(())
 }

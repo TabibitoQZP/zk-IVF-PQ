@@ -16,7 +16,8 @@ pub fn distance(builder: &mut CircuitBuilder<F, D>, src: Vec<Target>, dst: Vec<T
     cur_target
 }
 
-pub fn kmeans_gadget(
+// 这个电路证明了最近邻nn
+pub fn nn_gadget(
     builder: &mut CircuitBuilder<F, D>,
     r: Target,
     t: Target,
@@ -60,7 +61,7 @@ pub fn kmeans_gadget(
     root
 }
 
-pub fn kmeans_prove(
+pub fn nn_prove(
     src_vecs: Vec<Vec<u64>>,
     query: Vec<u64>,
     root: u64,
@@ -94,7 +95,7 @@ pub fn kmeans_prove(
     }
 
     // 设置电路连线并获取承诺根
-    let root_target = kmeans_gadget(
+    let root_target = nn_gadget(
         &mut builder,
         r_target,
         t_target,
