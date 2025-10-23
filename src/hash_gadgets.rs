@@ -12,7 +12,7 @@ pub fn hash_gadget(builder: &mut CircuitBuilder<F, D>, x: Vec<Target>) -> Target
 }
 
 // 基于哈希电路构建的merkle tree验证电路
-// 注意, 我们的merkle会对每个leaves[i]前面加一个i, 实际hash的是[i,leaves[i]]
+// 这里不会主动加索引, 别搞错了!
 pub fn merkle_tree_gadget(builder: &mut CircuitBuilder<F, D>, leaves: Vec<Vec<Target>>) -> Target {
     /*
      * The n is the merkle tree size, assume that it equals 2^t
@@ -37,4 +37,14 @@ pub fn merkle_tree_gadget(builder: &mut CircuitBuilder<F, D>, leaves: Vec<Vec<Ta
         hash_val = tmp_vec;
     }
     hash_val[0]
+}
+
+// F-S过程的随机数生成器
+pub fn fs_oracle(src: Vec<u64>, n: usize) -> Vec<u64> {
+    let mut src_cl: Vec<u64> = Vec::with_capacity(src.len() + n);
+    src_cl.extend(src.clone());
+    for _ in 0..n {
+        src_cl.push(hash_u64(src_cl.clone()));
+    }
+    src_cl[src.len()..].to_vec()
 }
