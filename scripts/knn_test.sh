@@ -1,0 +1,9 @@
+python tests/nn_gadgets_prove.py --N 128 --D 128
+python tests/nn_gadgets_prove.py --N 128 --D 512
+python tests/nn_gadgets_prove.py --N 128 --D 1024
+python tests/nn_gadgets_prove.py --N 512 --D 128
+python tests/nn_gadgets_prove.py --N 512 --D 512
+python tests/nn_gadgets_prove.py --N 512 --D 1024
+python tests/nn_gadgets_prove.py --N 1024 --D 128
+python tests/nn_gadgets_prove.py --N 1024 --D 512
+python tests/nn_gadgets_prove.py --N 1024 --D 1024

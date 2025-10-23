@@ -1,8 +1,9 @@
 // 有pub会给外部crate用, 无pub是给内部crate用
+pub mod common_gadgets;
 pub mod hash_gadgets;
+pub mod ivfpq;
 pub mod nn_gadgets;
 pub mod prelude;
-pub mod prove;
 
 use crate::hash_gadgets::hash_u64;
 use crate::nn_gadgets::nn_prove;

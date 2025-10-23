@@ -1,14 +1,18 @@
 use crate::prelude::*;
 
+// 将inputs向量映射为一个u64的哈希值
 pub fn hash_u64(inputs: Vec<u64>) -> u64 {
     let elems: Vec<F> = inputs.into_iter().map(F::from_canonical_u64).collect();
     PoseidonHash::hash_no_pad(&elems).elements[0].to_canonical_u64()
 }
 
+// 对应前面哈希映射函数的电路
 pub fn hash_gadget(builder: &mut CircuitBuilder<F, D>, x: Vec<Target>) -> Target {
     builder.hash_n_to_hash_no_pad::<PoseidonHash>(x).elements[0]
 }
 
+// 基于哈希电路构建的merkle tree验证电路
+// 注意, 我们的merkle会对每个leaves[i]前面加一个i, 实际hash的是[i,leaves[i]]
 pub fn merkle_tree_gadget(builder: &mut CircuitBuilder<F, D>, leaves: Vec<Vec<Target>>) -> Target {
     /*
      * The n is the merkle tree size, assume that it equals 2^t
@@ -33,44 +37,4 @@ pub fn merkle_tree_gadget(builder: &mut CircuitBuilder<F, D>, leaves: Vec<Vec<Ta
         hash_val = tmp_vec;
     }
     hash_val[0]
-}
-
-pub fn set_equal_gadget(
-    builder: &mut CircuitBuilder<F, D>,
-    r: Target,
-    t: Target,
-    src: Vec<Vec<Target>>,
-    dst: Vec<Vec<Target>>,
-) {
-    /*
-     * r: F-S challenge
-     * t: F-S hash value, used to prove permutation
-     * n: set size
-     * d: set element dimension
-     */
-    let n = src.len();
-    let d = src[0].len();
-
-    let mut fac_src: Vec<Target> = Vec::with_capacity(n);
-    let mut fac_dst: Vec<Target> = Vec::with_capacity(n);
-    for i in 0..n {
-        let mut cur_targets = src[i][0];
-        for j in 1..d {
-            cur_targets = builder.mul(t, cur_targets);
-            cur_targets = builder.add(cur_targets, src[i][j]);
-        }
-        fac_src.push(builder.sub(r, cur_targets));
-
-        let mut cur_targetd = dst[i][0];
-        for j in 1..d {
-            cur_targetd = builder.mul(t, cur_targetd);
-            cur_targetd = builder.add(cur_targetd, dst[i][j]);
-        }
-        fac_dst.push(builder.sub(r, cur_targetd));
-    }
-
-    let prod_src = builder.mul_many(fac_src);
-    let prod_dst = builder.mul_many(fac_dst);
-
-    builder.connect(prod_src, prod_dst);
 }
