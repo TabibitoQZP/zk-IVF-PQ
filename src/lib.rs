@@ -2,6 +2,7 @@
 // pub mod common_gadgets;
 pub mod hash_gadgets;
 pub mod ivf_flat;
+pub mod pq_flat;
 // pub mod ivfpq;
 // pub mod nn_gadgets;
 pub mod prelude;
@@ -9,6 +10,7 @@ pub mod utils;
 
 use crate::hash_gadgets::hash_u64;
 use crate::ivf_flat::proof::ivf_flat_proof;
+use crate::pq_flat::proof::pq_flat_proof;
 // use crate::nn_gadgets::nn_prove;
 use pyo3::prelude::*;
 
@@ -50,6 +52,17 @@ fn py_ivf_flat_proof(
 }
 
 #[pyfunction]
+fn py_pq_flat_proof(
+    codebooks: Vec<Vec<Vec<u64>>>, // (M,K,d)
+    query: Vec<u64>,               // (D,)
+    pq_vecs: Vec<Vec<u64>>,        // (N,M)
+    sorted_idx_dis: Vec<Vec<u64>>, // (N,2)
+) -> PyResult<bool> {
+    let corr = pq_flat_proof(codebooks, query, pq_vecs, sorted_idx_dis).is_ok();
+    Ok(corr)
+}
+
+#[pyfunction]
 fn batch_hash(inputs: Vec<Vec<u64>>) -> PyResult<Vec<u64>> {
     let outputs = inputs.into_iter().map(hash_u64).collect();
     Ok(outputs)
@@ -61,5 +74,6 @@ fn zk_IVF_PQ(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(batch_hash, m)?)?;
     // m.add_function(wrap_pyfunction!(py_nn_prove, m)?)?;
     m.add_function(wrap_pyfunction!(py_ivf_flat_proof, m)?)?;
+    m.add_function(wrap_pyfunction!(py_pq_flat_proof, m)?)?;
     Ok(())
 }
