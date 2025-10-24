@@ -18,6 +18,12 @@ pub type F = <C as GenericConfig<D>>::F;
 
 pub fn make_builder() -> CircuitBuilder<F, D> {
     let cfg = CircuitConfig::standard_recursion_config();
+
+    // 为了增大random access位数, 暂时不work
+    // cfg.num_routed_wires = cfg.num_routed_wires.max(2 + 256); // >= 258
+    // cfg.num_wires = cfg.num_wires.max(2 + 256 + 8); // >= 266
+    // cfg.max_quotient_degree_factor = cfg.max_quotient_degree_factor.max(12); // 8~16 都可；12/16 更保险
+
     CircuitBuilder::<F, D>::new(cfg)
 }
 
