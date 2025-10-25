@@ -1,34 +1,19 @@
-// 有pub会给外部crate用, 无pub是给内部crate用
-// pub mod common_gadgets;
 pub mod hash_gadgets;
 pub mod ivf_flat;
+pub mod ivf_pq;
 pub mod pq_flat;
-// pub mod ivfpq;
-// pub mod nn_gadgets;
 pub mod prelude;
 pub mod utils;
 
 use crate::hash_gadgets::hash_u64;
 use crate::ivf_flat::proof::ivf_flat_proof;
 use crate::pq_flat::proof::pq_flat_proof;
-// use crate::nn_gadgets::nn_prove;
 use pyo3::prelude::*;
 
 #[pyfunction]
 fn single_hash(input: Vec<u64>) -> PyResult<u64> {
     Ok(hash_u64(input))
 }
-
-// #[pyfunction]
-// fn py_nn_prove(
-//     src_vecs: Vec<Vec<u64>>,
-//     query: Vec<u64>,
-//     root: u64,
-//     sorted_idx_dis: Vec<Vec<u64>>,
-// ) -> PyResult<bool> {
-//     let corr = nn_prove(src_vecs, query, root, sorted_idx_dis).is_ok();
-//     Ok(corr)
-// }
 
 #[pyfunction]
 fn py_ivf_flat_proof(
@@ -70,9 +55,11 @@ fn batch_hash(inputs: Vec<Vec<u64>>) -> PyResult<Vec<u64>> {
 
 #[pymodule]
 fn zk_IVF_PQ(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    // 暴露的哈希函数, 用于计算root
     m.add_function(wrap_pyfunction!(single_hash, m)?)?;
     m.add_function(wrap_pyfunction!(batch_hash, m)?)?;
-    // m.add_function(wrap_pyfunction!(py_nn_prove, m)?)?;
+
+    // 各种向量数据库的证明系统
     m.add_function(wrap_pyfunction!(py_ivf_flat_proof, m)?)?;
     m.add_function(wrap_pyfunction!(py_pq_flat_proof, m)?)?;
     Ok(())

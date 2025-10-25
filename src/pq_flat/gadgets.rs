@@ -27,6 +27,21 @@ pub fn codebooks_query_gadget(
     result
 }
 
+pub fn lut_code_gadget(
+    builder: &mut CircuitBuilder<F, D>, // builder
+    lut: Vec<Vec<Target>>,              // (M,K)
+    code: Vec<Target>,                  // (M,)
+) -> Target {
+    let M = lut.len();
+    let mut total_dis = builder.zero();
+
+    for i in 0..M {
+        let cur_dis = builder.random_access(code[i], lut[i].clone());
+        total_dis = builder.add(total_dis, cur_dis);
+    }
+    total_dis
+}
+
 /*
 * PQ-Flat要扫所有的量化节点
 * D: 原始向量的维度, 这里写作D_, 因为有命名冲突
@@ -54,14 +69,9 @@ pub fn pq_flat_gadget(
     // 用lut查询和每个pq vec的距离
     let mut unsorted_idx_dis: Vec<Vec<Target>> = Vec::with_capacity(N);
     for i in 0..N {
-        let mut total_dis = builder.zero();
-        for j in 0..M {
-            let cur_dis = builder.random_access(pq_vecs[i][j], lut[j].clone());
-            total_dis = builder.add(total_dis, cur_dis);
-        }
         unsorted_idx_dis.push(vec![
             builder.constant(F::from_canonical_u64(i as u64)),
-            total_dis,
+            lut_code_gadget(builder, lut.clone(), pq_vecs[i].clone()),
         ]);
     }
     set_equal_gadget(
