@@ -47,7 +47,7 @@ pub fn lut_choose_gadget(
 * 这里需要注意, 考虑到每个cluster内的向量元素不定, 所以我们需要设置一个上限max_sz,
 * 我们只考虑不足max_sz的情况
 */
-pub fn ivf_flat_gadget(
+pub fn ivf_pq_gadget(
     builder: &mut CircuitBuilder<F, D>, // builder
     fs_hash: Vec<Target>,               // Fiat-Shamior用的值 (2,)
     ivf_centers: Vec<Vec<Target>>,      // ivf簇中心 *(n_list,D)
@@ -57,7 +57,7 @@ pub fn ivf_flat_gadget(
     probe_count: Vec<Target>,           // n_probe个簇内部所拥有的vec个数 (n_probe,)
     filtered_vecs: Vec<Vec<Target>>,    // n_probe个簇对应的所有向量, 已经排序好了 (max_sz,M)
     vecs_cluster_hot: Vec<Vec<Target>>, // 所有向量对应的簇索引, 表示为one-hot形式 (max_sz,n_probe)
-    codebooks: Vec<Vec<Vec<Target>>>,   // 全局码本 （M,K,d)
+    codebooks: Vec<Vec<Vec<Target>>>,   // 全局码本 (M,K,d)
 ) {
     let n_probe = probe_count.len();
     let max_sz = filtered_vecs.len();

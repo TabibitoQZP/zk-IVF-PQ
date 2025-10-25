@@ -7,12 +7,24 @@ pub mod utils;
 
 use crate::hash_gadgets::hash_u64;
 use crate::ivf_flat::proof::ivf_flat_proof;
+use crate::ivf_pq::proof::ivf_pq_proof;
 use crate::pq_flat::proof::pq_flat_proof;
 use pyo3::prelude::*;
 
 #[pyfunction]
 fn single_hash(input: Vec<u64>) -> PyResult<u64> {
     Ok(hash_u64(input))
+}
+
+#[pyfunction]
+fn py_pq_flat_proof(
+    codebooks: Vec<Vec<Vec<u64>>>, // (M,K,d)
+    query: Vec<u64>,               // (D,)
+    pq_vecs: Vec<Vec<u64>>,        // (N,M)
+    sorted_idx_dis: Vec<Vec<u64>>, // (N,2)
+) -> PyResult<bool> {
+    let corr = pq_flat_proof(codebooks, query, pq_vecs, sorted_idx_dis).is_ok();
+    Ok(corr)
 }
 
 #[pyfunction]
@@ -37,13 +49,27 @@ fn py_ivf_flat_proof(
 }
 
 #[pyfunction]
-fn py_pq_flat_proof(
-    codebooks: Vec<Vec<Vec<u64>>>, // (M,K,d)
-    query: Vec<u64>,               // (D,)
-    pq_vecs: Vec<Vec<u64>>,        // (N,M)
-    sorted_idx_dis: Vec<Vec<u64>>, // (N,2)
+fn py_ivf_pq_proof(
+    ivf_centers: Vec<Vec<u64>>,      // (n_list,D)
+    query: Vec<u64>,                 // (D,)
+    sorted_idx_dis: Vec<Vec<u64>>,   // (n_list,2)
+    filtered_centers: Vec<Vec<u64>>, // (n_probe,D)
+    probe_count: Vec<u64>,           // (n_probe,)
+    filtered_vecs: Vec<Vec<u64>>,    // (max_sz,M)
+    vecs_cluster_hot: Vec<Vec<u64>>, // (max_sz,n_probe)
+    codebooks: Vec<Vec<Vec<u64>>>,   // (M,K,d)
 ) -> PyResult<bool> {
-    let corr = pq_flat_proof(codebooks, query, pq_vecs, sorted_idx_dis).is_ok();
+    let corr = ivf_pq_proof(
+        ivf_centers,
+        query,
+        sorted_idx_dis,
+        filtered_centers,
+        probe_count,
+        filtered_vecs,
+        vecs_cluster_hot,
+        codebooks,
+    )
+    .is_ok();
     Ok(corr)
 }
 
@@ -62,5 +88,6 @@ fn zk_IVF_PQ(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // 各种向量数据库的证明系统
     m.add_function(wrap_pyfunction!(py_ivf_flat_proof, m)?)?;
     m.add_function(wrap_pyfunction!(py_pq_flat_proof, m)?)?;
+    m.add_function(wrap_pyfunction!(py_ivf_pq_proof, m)?)?;
     Ok(())
 }
