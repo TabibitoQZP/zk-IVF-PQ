@@ -27,7 +27,7 @@ pub fn lut_choose_gadget(
     let M = luts[0].len();
     let K = luts[0][0].len();
 
-    let mut lut: Vec<Vec<Target>> = Vec::with_capacity(M);
+    let mut lut: Vec<Vec<Target>> = Vec::with_capacity(M); // (M,K)
     for i in 0..M {
         let mut lut_row: Vec<Target> = Vec::with_capacity(K);
         for j in 0..K {
@@ -109,7 +109,7 @@ pub fn ivf_pq_gadget(
 
     // # 计算距离
     // 1. 计算luts
-    let mut luts: Vec<Vec<Vec<Target>>> = Vec::with_capacity(n_probe);
+    let mut luts: Vec<Vec<Vec<Target>>> = Vec::with_capacity(n_probe); // (n_probe,M,K)
     for i in 0..n_probe {
         let sub_val = vec_sub_gadget(builder, query.clone(), filtered_centers[i].clone());
         luts.push(codebooks_query_gadget(builder, codebooks.clone(), sub_val));

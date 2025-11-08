@@ -1,3 +1,4 @@
+pub mod brute_force;
 pub mod hash_gadgets;
 pub mod ivf_flat;
 pub mod ivf_pq;
@@ -5,6 +6,7 @@ pub mod pq_flat;
 pub mod prelude;
 pub mod utils;
 
+use crate::brute_force::proof::brute_force_proof;
 use crate::hash_gadgets::hash_u64;
 use crate::ivf_flat::proof::ivf_flat_proof;
 use crate::ivf_pq::proof::ivf_pq_proof;
@@ -14,6 +16,15 @@ use pyo3::prelude::*;
 #[pyfunction]
 fn single_hash(input: Vec<u64>) -> PyResult<u64> {
     Ok(hash_u64(input))
+}
+#[pyfunction]
+fn py_brute_force_proof(
+    src_vecs: Vec<Vec<u64>>,       // (N,D)
+    query: Vec<u64>,               // (D,)
+    sorted_idx_dis: Vec<Vec<u64>>, // (N,2)
+) -> PyResult<bool> {
+    let corr = brute_force_proof(src_vecs, query, sorted_idx_dis).is_ok();
+    Ok(corr)
 }
 
 #[pyfunction]
@@ -86,6 +97,7 @@ fn zk_IVF_PQ(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(batch_hash, m)?)?;
 
     // 各种向量数据库的证明系统
+    m.add_function(wrap_pyfunction!(py_brute_force_proof, m)?)?;
     m.add_function(wrap_pyfunction!(py_ivf_flat_proof, m)?)?;
     m.add_function(wrap_pyfunction!(py_pq_flat_proof, m)?)?;
     m.add_function(wrap_pyfunction!(py_ivf_pq_proof, m)?)?;

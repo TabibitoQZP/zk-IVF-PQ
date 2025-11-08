@@ -10,7 +10,7 @@ use crate::utils::nn_gadgets::static_nn_gadget;
 pub fn ivf_flat_gadget(
     builder: &mut CircuitBuilder<F, D>, // builder
     fs_hash: Vec<Target>,               // Fiat-Shamior用的值 (2,)
-    ivf_centers: Vec<Vec<Target>>,      // ivf簇中心 *(n_list,d)
+    ivf_centers: Vec<Vec<Target>>,      // ivf簇中心 (n_list,d)
     query: Vec<Target>,                 // 查询向量 (d,)
     sorted_idx_dis: Vec<Vec<Target>>,   // query对应簇中心(idx,dis)对, 按dis非递减序 (n_list,2)
     probe_count: Vec<Target>,           // n_probe个簇内部所拥有的vec个数 (n_probe,)
@@ -63,7 +63,7 @@ pub fn ivf_flat_gadget(
     for i in 0..n_probe {
         builder.connect(ver_sum[i], probe_count[i]);
     }
-    // 计算距离
+    // 计算距离hor_sum[i]dis+(1-hor_sum[i])max_gadget
     let mut dis_vec: Vec<Target> = Vec::with_capacity(max_sz);
     for i in 0..max_sz {
         let dis = distance(builder, query.clone(), filtered_vecs[i].clone());

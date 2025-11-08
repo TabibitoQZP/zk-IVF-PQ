@@ -32,6 +32,7 @@ pub fn lut_code_gadget(
     lut: Vec<Vec<Target>>,              // (M,K)
     code: Vec<Target>,                  // (M,)
 ) -> Target {
+    // TODO: 用builder.split_le进行位分解实现更高位的支持
     let M = lut.len();
     let mut total_dis = builder.zero();
 
@@ -54,7 +55,7 @@ pub fn pq_flat_gadget(
     fs_hash: Vec<Target>,               // Fiat-Shamior用的值 (2,)
     codebooks: Vec<Vec<Vec<Target>>>,   // 全局码本 *(M,K,d)
     query: Vec<Target>,                 // 查询向量 (D,)
-    pq_vecs: Vec<Vec<Target>>,          // 原始数据库, 未按距离序 *(N,M)
+    pq_vecs: Vec<Vec<Target>>,          // 量化数据库, 未按距离序 *(N,M)
     sorted_idx_dis: Vec<Vec<Target>>,   // query对应pq向量的(idx,dis)对, 按dis非递减序 (N,2)
 ) {
     let D_ = query.len();
@@ -63,7 +64,7 @@ pub fn pq_flat_gadget(
     let d = codebooks[0][0].len();
     let N = pq_vecs.len();
 
-    // 用码本计算和每个查询的距离
+    // 用码本计算和每个查询的距离 (M,K)
     let lut = codebooks_query_gadget(builder, codebooks, query);
 
     // 用lut查询和每个pq vec的距离

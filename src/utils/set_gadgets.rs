@@ -1,5 +1,8 @@
 use crate::prelude::*;
 
+/*
+* 证明\prod(r-\sum t^is_i)=\prod(r-\sum t^id_i)
+*/
 pub fn set_equal_gadget(
     builder: &mut CircuitBuilder<F, D>,
     r: Target,

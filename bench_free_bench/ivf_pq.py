@@ -19,8 +19,8 @@ from zk_IVF_PQ.zk_IVF_PQ import py_ivf_pq_proof
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--N", default=1024, type=int)
-parser.add_argument("--D", default=128, type=int)
-parser.add_argument("--M", default=8, type=int)
+parser.add_argument("--D", default=1024, type=int)
+parser.add_argument("--M", default=32, type=int)
 parser.add_argument("--K", default=64, type=int)
 parser.add_argument("--n_list", default=128, type=int)
 parser.add_argument("--n_probe", default=8, type=int)
@@ -87,4 +87,5 @@ def bench():
 
 
 if __name__ == "__main__":
+    print("ivf pq")
     bench()
