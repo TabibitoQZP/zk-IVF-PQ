@@ -1,3 +1,9 @@
+// jemalloc使用, 但实测会出问题
+// use jemallocator::Jemalloc;
+//
+// #[global_allocator]
+// static GLOBAL: Jemalloc = Jemalloc;
+
 // 只用于引入头文件
 pub use anyhow::Result;
 pub use plonky2::field::types::Field;

@@ -1,4 +1,5 @@
 use crate::prelude::*;
+use crate::utils::common_gadgets::static_lookup_gadget;
 
 // 将inputs向量映射为一个u64的哈希值
 pub fn hash_u64(inputs: Vec<u64>) -> u64 {
@@ -37,6 +38,36 @@ pub fn merkle_tree_gadget(builder: &mut CircuitBuilder<F, D>, leaves: Vec<Vec<Ta
         hash_val = tmp_vec;
     }
     hash_val[0]
+}
+
+/*
+* merkle树回溯, 注意要分方向
+* leaf按从左到右的逻辑顺序排, 最左边的方向是全0, 最右边方向是全1
+*/
+pub fn merkle_back_gadget(
+    builder: &mut CircuitBuilder<F, D>,
+    leaf: Vec<Target>,      // (n,)
+    path: Vec<Vec<Target>>, // (d, 2)
+) -> Target {
+    let mut curr_target = hash_gadget(builder, leaf);
+    let one = builder.one();
+    for i in 0..path.len() {
+        static_lookup_gadget(builder, path[i][0], vec![0, 1]);
+        let b0 = path[i][0]; // b0=0, 则curr_target在左边
+        let b1 = builder.sub(one, path[i][0]);
+
+        let v00 = builder.mul(b0, path[i][1]);
+        let v01 = builder.mul(b1, path[i][1]);
+        let v10 = builder.mul(b0, curr_target);
+        let v11 = builder.mul(b1, curr_target);
+
+        // 重构左右
+        let left = builder.add(v11, v00);
+        let right = builder.add(v01, v10);
+
+        curr_target = hash_gadget(builder, vec![left, right]);
+    }
+    curr_target
 }
 
 // F-S过程的随机数生成器

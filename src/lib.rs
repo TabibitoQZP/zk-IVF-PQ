@@ -3,6 +3,7 @@ pub mod hash_gadgets;
 pub mod ivf_flat;
 pub mod ivf_pq;
 pub mod pq_flat;
+pub mod pq_flat_com;
 pub mod prelude;
 pub mod utils;
 

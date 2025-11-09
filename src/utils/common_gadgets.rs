@@ -19,3 +19,11 @@ pub fn static_lookup_gadget(builder: &mut CircuitBuilder<F, D>, x: Target, tb: V
         .collect();
     dynamic_lookup_gadget(builder, x, tb_target);
 }
+
+pub fn sum_gadget(builder: &mut CircuitBuilder<F, D>, x: Vec<Target>) -> Target {
+    let mut curr_target = builder.zero();
+    for t in x {
+        curr_target = builder.add(t, curr_target);
+    }
+    curr_target
+}
