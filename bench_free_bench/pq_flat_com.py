@@ -14,7 +14,7 @@ import numpy as np
 from zk_IVF_PQ.zk_IVF_PQ import py_pq_flat_com_proof
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--N", default=32, type=int)
+parser.add_argument("--N", default=1024, type=int)
 parser.add_argument("--M", default=32, type=int)
 parser.add_argument("--K", default=64, type=int)  # 受限于plonky2设计, 最多只能64
 parser.add_argument("--D", default=1024, type=int)

@@ -164,7 +164,6 @@ pub fn pq_flat_com_proof(
     }
 
     let step = merkle_path[0][0].len();
-    println!("完成初始化");
 
     // 初始化电路
     let mut builder = make_builder();

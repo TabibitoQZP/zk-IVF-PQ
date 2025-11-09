@@ -33,12 +33,15 @@ pub fn pq_flat_com_gadget(
     let root = merkle_lut2d_gadget(builder, lut);
 
     // 证明pq_vecs, pq_dis, merkle_path符合条件
+    let mut const_list: Vec<Target> = Vec::with_capacity(M);
+    for i in 0..M {
+        const_list.push(builder.constant(F::from_canonical_u64(i as u64)));
+    }
     for i in 0..N {
-        let const_i = builder.constant(F::from_canonical_u64(i as u64));
         for j in 0..M {
             let curr_root = merkle_back_gadget(
                 builder,
-                vec![const_i, pq_vecs[i][j], pq_dis[i][j]],
+                vec![const_list[j].clone(), pq_vecs[i][j], pq_dis[i][j]],
                 merkle_path[i][j].clone(),
             );
             builder.connect(curr_root, root);
