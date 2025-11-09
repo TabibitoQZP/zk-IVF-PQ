@@ -12,12 +12,25 @@ use crate::hash_gadgets::hash_u64;
 use crate::ivf_flat::proof::ivf_flat_proof;
 use crate::ivf_pq::proof::ivf_pq_proof;
 use crate::pq_flat::proof::pq_flat_proof;
+use crate::pq_flat_com::proof::pq_flat_com_proof;
 use pyo3::prelude::*;
 
 #[pyfunction]
 fn single_hash(input: Vec<u64>) -> PyResult<u64> {
     Ok(hash_u64(input))
 }
+
+#[pyfunction]
+fn py_pq_flat_com_proof(
+    codebooks: Vec<Vec<Vec<u64>>>, // (M,K,d)
+    query: Vec<u64>,               // (D,)
+    pq_vecs: Vec<Vec<u64>>,        // (N,M)
+    sorted_idx_dis: Vec<Vec<u64>>, // (N,2)
+) -> PyResult<bool> {
+    let corr = pq_flat_com_proof(codebooks, query, pq_vecs, sorted_idx_dis).is_ok();
+    Ok(corr)
+}
+
 #[pyfunction]
 fn py_brute_force_proof(
     src_vecs: Vec<Vec<u64>>,       // (N,D)
@@ -101,6 +114,7 @@ fn zk_IVF_PQ(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(py_brute_force_proof, m)?)?;
     m.add_function(wrap_pyfunction!(py_ivf_flat_proof, m)?)?;
     m.add_function(wrap_pyfunction!(py_pq_flat_proof, m)?)?;
+    m.add_function(wrap_pyfunction!(py_pq_flat_com_proof, m)?)?;
     m.add_function(wrap_pyfunction!(py_ivf_pq_proof, m)?)?;
     Ok(())
 }

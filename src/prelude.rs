@@ -49,6 +49,11 @@ pub fn public_targets_3d(builder: &mut CircuitBuilder<F, D>, targets: Vec<Vec<Ve
         public_targets_2d(builder, t);
     }
 }
+pub fn public_targets_4d(builder: &mut CircuitBuilder<F, D>, targets: Vec<Vec<Vec<Vec<Target>>>>) {
+    for t in targets {
+        public_targets_3d(builder, t);
+    }
+}
 
 // add_targets系列
 pub fn add_targets_2d(builder: &mut CircuitBuilder<F, D>, shape: Vec<usize>) -> Vec<Vec<Target>> {
@@ -65,6 +70,16 @@ pub fn add_targets_3d(
     let mut result: Vec<Vec<Vec<Target>>> = Vec::with_capacity(shape[0]);
     for _ in 0..shape[0] {
         result.push(add_targets_2d(builder, vec![shape[1], shape[2]]));
+    }
+    result
+}
+pub fn add_targets_4d(
+    builder: &mut CircuitBuilder<F, D>,
+    shape: Vec<usize>,
+) -> Vec<Vec<Vec<Vec<Target>>>> {
+    let mut result: Vec<Vec<Vec<Vec<Target>>>> = Vec::with_capacity(shape[0]);
+    for _ in 0..shape[0] {
+        result.push(add_targets_3d(builder, vec![shape[1], shape[2], shape[3]]));
     }
     result
 }
@@ -103,6 +118,14 @@ pub fn input_targets_3d(
     }
     Ok(())
 }
-
-// 可选：如果你还想用到 std::result::Result，可以在需要处显式起别名：
-// pub type StdResult<T, E> = std::result::Result<T, E>;
+pub fn input_targets_4d(
+    pw: &mut PartialWitness<F>,
+    targets: Vec<Vec<Vec<Vec<Target>>>>,
+    inputs: Vec<Vec<Vec<Vec<u64>>>>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let x = targets.len();
+    for i in 0..x {
+        input_targets_3d(pw, targets[i].clone(), inputs[i].clone())?;
+    }
+    Ok(())
+}
