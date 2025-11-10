@@ -35,7 +35,9 @@ pub fn pq_flat_com_gadget(
     // 证明pq_vecs, pq_dis, merkle_path符合条件
     let mut const_list: Vec<Target> = Vec::with_capacity(M);
     for i in 0..M {
-        const_list.push(builder.constant(F::from_canonical_u64(i as u64)));
+        let item = builder.constant(F::from_canonical_u64(i as u64));
+        builder.register_public_input(item); // 注册为公开
+        const_list.push(item);
     }
     for i in 0..N {
         for j in 0..M {

@@ -1,5 +1,5 @@
 pub mod brute_force;
-pub mod halo2_brute_force;
+// pub mod halo2_brute_force;
 pub mod hash_gadgets;
 pub mod ivf_flat;
 pub mod ivf_pq;
@@ -11,7 +11,7 @@ pub mod prelude;
 pub mod utils;
 
 use crate::brute_force::proof::brute_force_proof;
-use crate::halo2_brute_force::proof::halo2_brute_force_proof;
+// use crate::halo2_brute_force::proof::halo2_brute_force_proof;
 use crate::hash_gadgets::hash_u64;
 use crate::ivf_flat::proof::ivf_flat_proof;
 use crate::ivf_pq::proof::ivf_pq_proof;
@@ -47,15 +47,15 @@ fn py_brute_force_proof(
     Ok(corr)
 }
 
-#[pyfunction]
-fn py_halo2_brute_force_proof(
-    src_vecs: Vec<Vec<u64>>,       // (N,D)
-    query: Vec<u64>,               // (D,)
-    sorted_idx_dis: Vec<Vec<u64>>, // (N,2)
-) -> PyResult<bool> {
-    let corr = halo2_brute_force_proof(src_vecs, query, sorted_idx_dis).is_ok();
-    Ok(corr)
-}
+// #[pyfunction]
+// fn py_halo2_brute_force_proof(
+//     src_vecs: Vec<Vec<u64>>,       // (N,D)
+//     query: Vec<u64>,               // (D,)
+//     sorted_idx_dis: Vec<Vec<u64>>, // (N,2)
+// ) -> PyResult<bool> {
+//     let corr = halo2_brute_force_proof(src_vecs, query, sorted_idx_dis).is_ok();
+//     Ok(corr)
+// }
 
 #[pyfunction]
 fn py_pq_flat_proof(
@@ -160,7 +160,7 @@ fn zk_IVF_PQ(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     // 各种向量数据库的证明系统
     m.add_function(wrap_pyfunction!(py_brute_force_proof, m)?)?;
-    m.add_function(wrap_pyfunction!(py_halo2_brute_force_proof, m)?)?;
+    // m.add_function(wrap_pyfunction!(py_halo2_brute_force_proof, m)?)?;
     m.add_function(wrap_pyfunction!(py_ivf_flat_proof, m)?)?;
     m.add_function(wrap_pyfunction!(py_pq_flat_proof, m)?)?;
     m.add_function(wrap_pyfunction!(py_pq_flat_accel_proof, m)?)?;

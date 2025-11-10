@@ -18,6 +18,37 @@ pub fn vec_sub_gadget(
     result
 }
 
+pub fn lut_choose_by_idx_gadget(
+    builder: &mut CircuitBuilder<F, D>, // builder
+    luts: Vec<Vec<Vec<Target>>>,        // (n_probe,M,K)
+    one_hot: Vec<Target>,               // (n_probe,)
+) -> Vec<Vec<Target>> {
+    let n_probe = luts.len();
+    let M = luts[0].len();
+    let K = luts[0][0].len();
+
+    let mut idx = builder.zero();
+    for i in 0..n_probe {
+        let const_i = builder.constant(F::from_canonical_u64(i as u64));
+        let curr_mul = builder.mul(one_hot[i], const_i);
+        idx = builder.add(idx, curr_mul);
+    }
+
+    let mut lut: Vec<Vec<Target>> = Vec::with_capacity(M); // (M,K)
+    for i in 0..M {
+        let mut lut_row: Vec<Target> = Vec::with_capacity(K);
+        for j in 0..K {
+            let mut n_probe_slide: Vec<Target> = Vec::with_capacity(n_probe);
+            for k in 0..n_probe {
+                n_probe_slide.push(luts[k][i][j].clone());
+            }
+            lut_row.push(builder.random_access(idx, n_probe_slide));
+        }
+        lut.push(lut_row);
+    }
+    lut
+}
+
 pub fn lut_choose_gadget(
     builder: &mut CircuitBuilder<F, D>, // builder
     luts: Vec<Vec<Vec<Target>>>,        // (n_probe,M,K)
@@ -118,7 +149,8 @@ pub fn ivf_pq_gadget(
     let max_gadget = builder.constant(F::from_canonical_u64(u32::MAX as u64));
     let mut dis_vec: Vec<Target> = Vec::with_capacity(max_sz);
     for i in 0..max_sz {
-        let lut = lut_choose_gadget(builder, luts.clone(), vecs_cluster_hot[i].clone());
+        // let lut = lut_choose_gadget(builder, luts.clone(), vecs_cluster_hot[i].clone());
+        let lut = lut_choose_by_idx_gadget(builder, luts.clone(), vecs_cluster_hot[i].clone());
         let dis = lut_code_gadget(builder, lut, filtered_vecs[i].clone());
         let cur_b = hor_sum[i];
         let sub_cur_b = builder.sub(one, cur_b);
