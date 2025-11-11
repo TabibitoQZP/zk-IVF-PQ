@@ -11,12 +11,12 @@ pub fn pq_flat_proof(
 
 import argparse
 import numpy as np
-from zk_IVF_PQ.zk_IVF_PQ import py_pq_flat_accel_proof
+from zk_IVF_PQ.zk_IVF_PQ import py_pq_flat_verify_proof
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--N", default=1024, type=int)
-parser.add_argument("--M", default=32, type=int)
-parser.add_argument("--K", default=64, type=int)  # 受限于plonky2设计, 最多只能64
+parser.add_argument("--M", default=64, type=int)
+parser.add_argument("--K", default=256, type=int)  # 受限于plonky2设计, 最多只能64
 parser.add_argument("--D", default=1024, type=int)
 
 args = parser.parse_args()
@@ -55,10 +55,10 @@ def bench():
 
     sorted_idx_dis = np.column_stack((order, dis[order]))
 
-    result = py_pq_flat_accel_proof(codebooks, query, pq_vecs, sorted_idx_dis)
+    result = py_pq_flat_verify_proof(codebooks, query, pq_vecs, sorted_idx_dis)
     print(result)
 
 
 if __name__ == "__main__":
-    print("pq flat accel")
+    print("pq flat verify")
     bench()

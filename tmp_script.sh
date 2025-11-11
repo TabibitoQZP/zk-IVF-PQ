@@ -1,1 +1,1 @@
-maturin develop --release && python bench_free_bench/ivf_pq.py
+maturin develop && python bench_free_bench/pq_flat_verify.py

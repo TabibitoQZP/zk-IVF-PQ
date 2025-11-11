@@ -4,18 +4,21 @@ pub mod hash_gadgets;
 pub mod ivf_flat;
 pub mod ivf_pq;
 pub mod pq_flat;
+pub mod pq_flat_com;
+pub mod pq_flat_verify;
 // pub mod pq_flat_acc;
 // pub mod pq_flat_accel;
-pub mod pq_flat_com;
 pub mod prelude;
 pub mod utils;
 
 use crate::brute_force::proof::brute_force_proof;
+use std::error::Error;
 // use crate::halo2_brute_force::proof::halo2_brute_force_proof;
 use crate::hash_gadgets::hash_u64;
 use crate::ivf_flat::proof::ivf_flat_proof;
 use crate::ivf_pq::proof::ivf_pq_proof;
 use crate::pq_flat::proof::pq_flat_proof;
+use crate::pq_flat_verify::proof::pq_flat_verify_proof;
 // use crate::pq_flat_acc::proof::pq_flat_acc_proof;
 // use crate::pq_flat_accel::proof::pq_flat_accel_proof;
 use crate::pq_flat_com::proof::pq_flat_com_proof;
@@ -66,6 +69,28 @@ fn py_pq_flat_proof(
 ) -> PyResult<bool> {
     let corr = pq_flat_proof(codebooks, query, pq_vecs, sorted_idx_dis).is_ok();
     Ok(corr)
+}
+
+#[pyfunction]
+fn py_pq_flat_verify_proof(
+    codebooks: Vec<Vec<Vec<u64>>>, // (M,K,d)
+    query: Vec<u64>,               // (D,)
+    pq_vecs: Vec<Vec<u64>>,        // (N,M)
+    sorted_idx_dis: Vec<Vec<u64>>, // (N,2)
+) -> PyResult<bool> {
+    // let corr = pq_flat_verify_proof(codebooks, query, pq_vecs, sorted_idx_dis).is_ok();
+    // Ok(corr)
+    if let Err(e) = pq_flat_verify_proof(codebooks, query, pq_vecs, sorted_idx_dis) {
+        eprintln!("error: {e}"); // Display：更简洁
+        let mut src = e.source();
+        while let Some(cause) = src {
+            // 打印 error chain（根因）
+            eprintln!("  caused by: {cause}");
+            src = cause.source();
+        }
+        return Ok(false);
+    }
+    Ok(true)
 }
 
 // #[pyfunction]
@@ -163,6 +188,7 @@ fn zk_IVF_PQ(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // m.add_function(wrap_pyfunction!(py_halo2_brute_force_proof, m)?)?;
     m.add_function(wrap_pyfunction!(py_ivf_flat_proof, m)?)?;
     m.add_function(wrap_pyfunction!(py_pq_flat_proof, m)?)?;
+    m.add_function(wrap_pyfunction!(py_pq_flat_verify_proof, m)?)?;
     // m.add_function(wrap_pyfunction!(py_pq_flat_accel_proof, m)?)?;
     // m.add_function(wrap_pyfunction!(py_pq_flat_acc_proof, m)?)?;
     m.add_function(wrap_pyfunction!(py_pq_flat_com_proof, m)?)?;
