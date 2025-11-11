@@ -27,17 +27,45 @@ pub fn codebooks_query_gadget(
     result
 }
 
+// 可以支持超过64长度的随机读取
+pub fn random_access_gadget(
+    builder: &mut CircuitBuilder<F, D>,
+    idx: Target,
+    data: Vec<Target>,
+) -> Target {
+    let sz = data.len();
+    if sz <= 64 {
+        return builder.random_access(idx, data);
+    }
+    let idx2d = builder.split_le_base::<8>(idx, 4);
+    let const_8 = builder.constant(F::from_canonical_u64(8));
+    let lower_part = builder.mul_add(idx2d[1], const_8, idx2d[0]);
+    let higher_part = builder.mul_add(idx2d[3], const_8, idx2d[2]);
+
+    let x = sz / 64;
+    let data2d: Vec<Vec<Target>> = (0..x)
+        .map(|i| data[i * 64..(i + 1) * 64].to_vec())
+        .collect();
+
+    let mut new_data: Vec<Target> = Vec::with_capacity(64);
+    for i in 0..64 {
+        let curr_row: Vec<Target> = (0..x).map(|y| data2d[y][i]).collect();
+        new_data.push(builder.random_access(higher_part, curr_row));
+    }
+    builder.random_access(lower_part, new_data)
+}
+
 pub fn lut_code_gadget(
     builder: &mut CircuitBuilder<F, D>, // builder
     lut: Vec<Vec<Target>>,              // (M,K)
     code: Vec<Target>,                  // (M,)
 ) -> Target {
-    // TODO: 用builder.split_le进行位分解实现更高位的支持
+    // TODO: 将LUT分成多表来实现更复杂的支持
     let M = lut.len();
     let mut total_dis = builder.zero();
 
     for i in 0..M {
-        let cur_dis = builder.random_access(code[i], lut[i].clone());
+        let cur_dis = random_access_gadget(builder, code[i], lut[i].clone());
         total_dis = builder.add(total_dis, cur_dis);
     }
     total_dis
