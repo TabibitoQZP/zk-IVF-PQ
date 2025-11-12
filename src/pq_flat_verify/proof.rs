@@ -26,14 +26,20 @@ pub fn convert_ft_set(
         .map(|row| compress_u64(row, alpha))
         .collect();
 
-    let sz = f.len();
+    // 扩增到同样长度, 都只用0号位扩增
+    let sz = if f.len() > t.len() { f.len() } else { t.len() };
     while t.len() < sz {
         t.push(t[0]);
     }
-    // 对t也要排序, 这样第一个必然相同
+    while f.len() < sz {
+        f.push(f[0]);
+    }
+
+    // 对t也排序, 这样第一个必然相同
     f.sort();
     t.sort();
 
+    // 按规则调整t的位置
     for i in 1..sz {
         if f[i] != f[i - 1] {
             for j in 0..sz {
@@ -45,14 +51,6 @@ pub fn convert_ft_set(
             }
         }
     }
-
-    // 手动输出是否等于0
-    // for i in 1..sz {
-    //     let cur_val = (f[i] as i128 - t[i] as i128) * (f[i] as i128 - f[i - 1] as i128);
-    //     if cur_val != 0 {
-    //         println!("{}", cur_val);
-    //     }
-    // }
 
     (f, t)
 }

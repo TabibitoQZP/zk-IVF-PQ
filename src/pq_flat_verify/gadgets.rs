@@ -1,32 +1,6 @@
+use crate::pq_flat::gadgets::codebooks_query_gadget;
 use crate::prelude::*;
-use crate::utils::dis_gadgets::distance;
 use crate::utils::set_gadgets::{compress_gadget, set_equal_gadget, simple_set_equal_gadget};
-
-// 计算LUT
-pub fn codebooks_query_gadget(
-    builder: &mut CircuitBuilder<F, D>, // builder
-    codebooks: Vec<Vec<Vec<Target>>>,   // 全局码本 （M,K,d)
-    query: Vec<Target>,                 // 查询向量 (D,)
-) -> Vec<Vec<Target>> // 要返回一个与各个码本的距离平方 (M,K)
-{
-    let D_ = query.len();
-    let M = codebooks.len();
-    let K = codebooks[0].len();
-    let d = codebooks[0][0].len();
-
-    let mut result: Vec<Vec<Target>> = Vec::with_capacity(M);
-    for i in 0..M {
-        let mut cur_result: Vec<Target> = Vec::with_capacity(K);
-        for j in 0..K {
-            let cur_vec = codebooks[i][j].clone(); // (d,)
-            let query_slide = query[(i * d)..((i + 1) * d)].to_vec();
-            let dis = distance(builder, cur_vec, query_slide);
-            cur_result.push(dis);
-        }
-        result.push(cur_result);
-    }
-    result
-}
 
 pub fn set_belong_gedget(
     builder: &mut CircuitBuilder<F, D>,
@@ -36,7 +10,7 @@ pub fn set_belong_gedget(
     f_: Vec<Target>,         // 外部计算的f
     t_: Vec<Target>,         // 外部计算的, 扩增的t
 ) {
-    let f: Vec<Target> = f_set
+    let mut f: Vec<Target> = f_set
         .into_iter()
         .map(|row| compress_gadget(builder, fs_hash[0], row))
         .collect();
@@ -44,8 +18,13 @@ pub fn set_belong_gedget(
         .into_iter()
         .map(|row| compress_gadget(builder, fs_hash[0], row))
         .collect();
-    while t.len() < f.len() {
+
+    // 外部计算的f_, t_满足扩增后等长的要求
+    while t.len() < t_.len() {
         t.push(t[0]);
+    }
+    while f.len() < f_.len() {
+        f.push(f[0]);
     }
 
     simple_set_equal_gadget(builder, fs_hash[1], f.clone(), f_.clone());
