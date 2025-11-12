@@ -17,6 +17,8 @@ import argparse
 import numpy as np
 from zk_IVF_PQ.zk_IVF_PQ import py_ivf_pq_verify_proof
 
+np.random.seed(42)
+
 parser = argparse.ArgumentParser()
 parser.add_argument("--N", default=1024, type=int)
 parser.add_argument("--D", default=1024, type=int)
@@ -24,6 +26,7 @@ parser.add_argument("--M", default=64, type=int)
 parser.add_argument("--K", default=256, type=int)
 parser.add_argument("--n_list", default=128, type=int)
 parser.add_argument("--n_probe", default=8, type=int)
+parser.add_argument("--seed", default=40, type=int)
 
 args = parser.parse_args()
 
@@ -36,6 +39,7 @@ n_list = args.n_list
 n_probe = args.n_probe
 max_sz = 2 * N // n_list * n_probe
 avg_cnt = N // n_list
+seed = args.seed
 
 
 def make_block_onehot(
@@ -53,7 +57,7 @@ def make_block_onehot(
 
 
 def bench():
-    rng = np.random.default_rng()
+    rng = np.random.default_rng(seed=seed)
 
     query = rng.integers(0, 127, size=(D,), dtype=np.uint32, endpoint=True)
     ivf_centers = rng.integers(0, 127, size=(n_list, D), dtype=np.uint32, endpoint=True)

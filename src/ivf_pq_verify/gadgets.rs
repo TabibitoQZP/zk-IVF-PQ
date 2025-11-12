@@ -153,6 +153,7 @@ pub fn ivf_pq_verify_gadget(
         dis_vec.push(cur_dis);
     }
     // 3. 验证合法性
+    // FIXME: Unknown Error that will have risk to fail
     set_belong_gedget(builder, fs_hash[2..].to_vec(), dis_set, lut_set, f_, t_);
 
     for i in 0..max_sz - 1 {

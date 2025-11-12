@@ -35,9 +35,15 @@ pub fn convert_ft_set(
         f.push(f[0]);
     }
 
-    // 对t也排序, 这样第一个必然相同
     f.sort();
-    t.sort();
+    // t.sort();
+    for i in 0..sz {
+        if t[i] == f[0] {
+            t[i] = t[0];
+            t[0] = f[0];
+        }
+    }
+    t[1..].sort();
 
     // 按规则调整t的位置
     for i in 1..sz {

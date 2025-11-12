@@ -32,6 +32,7 @@ pub fn set_belong_gedget(
 
     let sz = f_.len();
     builder.connect(f_[0], t_[0]);
+
     let zero = builder.zero();
     for i in 1..sz {
         let left = builder.sub(f_[i], t_[i]);

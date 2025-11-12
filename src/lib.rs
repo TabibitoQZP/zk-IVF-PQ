@@ -136,7 +136,19 @@ fn py_ivf_pq_verify_proof(
     vecs_cluster_hot: Vec<Vec<u64>>, // (max_sz,n_probe)
     codebooks: Vec<Vec<Vec<u64>>>,   // (M,K,d)
 ) -> PyResult<bool> {
-    let corr = ivf_pq_verify_proof(
+    // let corr = ivf_pq_verify_proof(
+    //     ivf_centers,
+    //     query,
+    //     sorted_idx_dis,
+    //     filtered_centers,
+    //     probe_count,
+    //     filtered_vecs,
+    //     vecs_cluster_hot,
+    //     codebooks,
+    // )
+    // .is_ok();
+    // Ok(corr)
+    if let Err(e) = ivf_pq_verify_proof(
         ivf_centers,
         query,
         sorted_idx_dis,
@@ -145,9 +157,17 @@ fn py_ivf_pq_verify_proof(
         filtered_vecs,
         vecs_cluster_hot,
         codebooks,
-    )
-    .is_ok();
-    Ok(corr)
+    ) {
+        eprintln!("error: {e}"); // Display：更简洁
+        let mut src = e.source();
+        while let Some(cause) = src {
+            // 打印 error chain（根因）
+            eprintln!("  caused by: {cause}");
+            src = cause.source();
+        }
+        return Ok(false);
+    }
+    Ok(true)
 }
 
 #[pyfunction]
