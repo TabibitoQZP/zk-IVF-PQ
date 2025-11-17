@@ -11,6 +11,10 @@ pub fn ivf_flat_proof(
 ) -> Result<(), Box<dyn std::error::Error>> {}
 """
 
+# import os
+#
+# os.environ["RAYON_NUM_THREADS"] = "1"
+
 import argparse
 import numpy as np
 from zk_IVF_PQ.zk_IVF_PQ import py_ivf_flat_proof
