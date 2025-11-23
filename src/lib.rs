@@ -3,6 +3,7 @@ pub mod hash_gadgets;
 pub mod ivf_flat;
 pub mod ivf_pq;
 pub mod ivf_pq_verify;
+pub mod merkle_commit;
 pub mod pq_flat;
 pub mod pq_flat_com;
 pub mod pq_flat_verify;
@@ -14,6 +15,7 @@ use crate::hash_gadgets::hash_u64;
 use crate::ivf_flat::proof::ivf_flat_proof;
 use crate::ivf_pq::proof::ivf_pq_proof;
 use crate::ivf_pq_verify::proof::ivf_pq_verify_proof;
+use crate::merkle_commit::proof::{merkle_commit_plain_proof, merkle_commit_proof};
 use crate::pq_flat::proof::pq_flat_proof;
 use crate::pq_flat_com::proof::pq_flat_com_proof;
 use crate::pq_flat_verify::proof::pq_flat_verify_proof;
@@ -33,6 +35,18 @@ fn py_pq_flat_com_proof(
     sorted_idx_dis: Vec<Vec<u64>>, // (N,2)
 ) -> PyResult<bool> {
     let corr = pq_flat_com_proof(codebooks, query, pq_vecs, sorted_idx_dis).is_ok();
+    Ok(corr)
+}
+
+#[pyfunction]
+fn py_merkle_commit_proof(leaves: Vec<Vec<u64>>) -> PyResult<bool> {
+    let corr = merkle_commit_proof(leaves).is_ok();
+    Ok(corr)
+}
+
+#[pyfunction]
+fn py_merkle_commit_plain_proof(leaves: Vec<Vec<u64>>) -> PyResult<bool> {
+    let corr = merkle_commit_plain_proof(leaves).is_ok();
     Ok(corr)
 }
 
@@ -183,6 +197,8 @@ fn zk_IVF_PQ(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(batch_hash, m)?)?;
 
     // 各种向量数据库的证明系统
+    m.add_function(wrap_pyfunction!(py_merkle_commit_proof, m)?)?;
+    m.add_function(wrap_pyfunction!(py_merkle_commit_plain_proof, m)?)?;
     m.add_function(wrap_pyfunction!(py_brute_force_proof, m)?)?;
     m.add_function(wrap_pyfunction!(py_ivf_flat_proof, m)?)?;
     m.add_function(wrap_pyfunction!(py_pq_flat_proof, m)?)?;

@@ -67,6 +67,12 @@ pub fn ivf_flat_proof(
     curr_time = Instant::now();
     let proof = data.prove(pw)?;
     println!("证明生成: {:?}", curr_time.elapsed());
+
+    // 证明大小
+    let compressed_proof = data.compress(proof.clone())?;
+    let compressed_bytes = compressed_proof.to_bytes();
+    println!("证明大小: {}B", compressed_bytes.len());
+
     curr_time = Instant::now();
     let _ = data.verify(proof);
     println!("证明验证: {:?}", curr_time.elapsed());
