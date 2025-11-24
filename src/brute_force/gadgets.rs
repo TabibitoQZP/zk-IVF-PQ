@@ -1,13 +1,6 @@
 use crate::prelude::*;
 use crate::utils::dis_gadgets::distance;
-use crate::utils::nn_gadgets::static_nn_gadget;
-
-// 给定(src, dst), src<=dst返回0, src>dst返回1
-pub fn comp_gadget(builder: &mut CircuitBuilder<F, D>, src: Target, dst: Target) -> Target {
-    let sub_target = builder.sub(dst, src);
-    let final_target = builder.split_le(sub_target, 64)[63];
-    final_target.target
-}
+use crate::utils::nn_gadgets::{comp_gadget, static_nn_gadget};
 
 pub fn rev_gadget(
     builder: &mut CircuitBuilder<F, D>,
