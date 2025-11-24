@@ -10,7 +10,7 @@ pub mod pq_flat_verify;
 pub mod prelude;
 pub mod utils;
 
-use crate::brute_force::proof::brute_force_proof;
+use crate::brute_force::proof::{brute_force_proof, sort_brute_force_proof};
 use crate::hash_gadgets::hash_u64;
 use crate::ivf_flat::proof::ivf_flat_proof;
 use crate::ivf_pq::proof::ivf_pq_proof;
@@ -57,6 +57,16 @@ fn py_brute_force_proof(
     sorted_idx_dis: Vec<Vec<u64>>, // (N,2)
 ) -> PyResult<bool> {
     let corr = brute_force_proof(src_vecs, query, sorted_idx_dis).is_ok();
+    Ok(corr)
+}
+
+#[pyfunction]
+fn py_sort_brute_force_proof(
+    src_vecs: Vec<Vec<u64>>, // (N,D)
+    query: Vec<u64>,         // (D,)
+    top_k: u64,
+) -> PyResult<bool> {
+    let corr = sort_brute_force_proof(src_vecs, query, top_k).is_ok();
     Ok(corr)
 }
 
@@ -200,6 +210,7 @@ fn zk_IVF_PQ(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(py_merkle_commit_proof, m)?)?;
     m.add_function(wrap_pyfunction!(py_merkle_commit_plain_proof, m)?)?;
     m.add_function(wrap_pyfunction!(py_brute_force_proof, m)?)?;
+    m.add_function(wrap_pyfunction!(py_sort_brute_force_proof, m)?)?;
     m.add_function(wrap_pyfunction!(py_ivf_flat_proof, m)?)?;
     m.add_function(wrap_pyfunction!(py_pq_flat_proof, m)?)?;
     m.add_function(wrap_pyfunction!(py_pq_flat_verify_proof, m)?)?;
