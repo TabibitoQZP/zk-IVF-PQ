@@ -21,7 +21,7 @@ np.random.seed(42)
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--N", default=1024, type=int)
-parser.add_argument("--D", default=1024, type=int)
+parser.add_argument("--D", default=128, type=int)
 parser.add_argument("--M", default=64, type=int)
 parser.add_argument("--K", default=256, type=int)
 parser.add_argument("--n_list", default=128, type=int)

@@ -5,7 +5,7 @@ use crate::prelude::*;
 
 // NOTE: 如果不发生模回绕, 那计算就无所谓
 pub fn luts_gen_u64(
-    codebooks: &[Vec<Vec<u64>>],
+    codebooks: &[Vec<Vec<i64>>],
     query: &[u64],
     centers: &[Vec<u64>],
 ) -> Vec<Vec<Vec<u64>>> {
@@ -57,7 +57,7 @@ pub fn ivf_pq_verify_proof(
     probe_count: Vec<u64>,           // (n_probe,)
     filtered_vecs: Vec<Vec<u64>>,    // (max_sz,M)
     vecs_cluster_hot: Vec<Vec<u64>>, // (max_sz,n_probe)
-    codebooks: Vec<Vec<Vec<u64>>>,   // (M,K,d)
+    codebooks: Vec<Vec<Vec<i64>>>,   // (M,K,d)
 ) -> Result<(), Box<dyn std::error::Error>> {
     // 初始化维度信息
     let n_list = ivf_centers.len();
@@ -170,7 +170,7 @@ pub fn ivf_pq_verify_proof(
     input_targets_2d(&mut pw, filtered_vecs_targets, filtered_vecs)?;
     input_targets_2d(&mut pw, filtered_dis_targets, filtered_dis)?;
     input_targets_2d(&mut pw, vecs_cluster_hot_targets, vecs_cluster_hot)?;
-    input_targets_3d(&mut pw, codebooks_targets, codebooks)?;
+    input_targets_3d_sign(&mut pw, codebooks_targets, codebooks)?;
     input_targets_1d(&mut pw, f__targets, f_)?;
     input_targets_1d(&mut pw, t__targets, t_)?;
     println!("输入witness: {:?}", curr_time.elapsed());

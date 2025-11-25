@@ -129,3 +129,38 @@ pub fn input_targets_4d(
     }
     Ok(())
 }
+
+// input_targets系列
+pub fn input_targets_1d_sign(
+    pw: &mut PartialWitness<F>,
+    targets: Vec<Target>,
+    inputs: Vec<i64>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let x = targets.len();
+    for i in 0..x {
+        pw.set_target(targets[i], F::from_noncanonical_i64(inputs[i]))?;
+    }
+    Ok(())
+}
+pub fn input_targets_2d_sign(
+    pw: &mut PartialWitness<F>,
+    targets: Vec<Vec<Target>>,
+    inputs: Vec<Vec<i64>>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let x = targets.len();
+    for i in 0..x {
+        input_targets_1d_sign(pw, targets[i].clone(), inputs[i].clone())?;
+    }
+    Ok(())
+}
+pub fn input_targets_3d_sign(
+    pw: &mut PartialWitness<F>,
+    targets: Vec<Vec<Vec<Target>>>,
+    inputs: Vec<Vec<Vec<i64>>>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let x = targets.len();
+    for i in 0..x {
+        input_targets_2d_sign(pw, targets[i].clone(), inputs[i].clone())?;
+    }
+    Ok(())
+}

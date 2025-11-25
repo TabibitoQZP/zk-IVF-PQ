@@ -34,7 +34,7 @@ def ivf_pq_learn(
     quant_code_books = np.rint(code_books).astype(np.int32)
     quant_center = np.rint(center).astype(np.int32)
 
-    # (N,), (n_list,D), (M,K,D/M), (n_list,M)
+    # (N,), (n_list,D), (M,K,D/M), (N,M)
     return labels, quant_center, quant_code_books, quant_vecs, id_groups
 
 
