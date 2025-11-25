@@ -2,7 +2,7 @@ use crate::pq_flat::gadgets::codebooks_query_gadget;
 use crate::pq_flat_verify::gadgets::set_belong_gedget;
 use crate::prelude::*;
 use crate::utils::common_gadgets::static_lookup_gadget;
-use crate::utils::nn_gadgets::static_nn_gadget;
+use crate::utils::nn_gadgets::{comp_gadget, static_nn_gadget};
 use std::cmp::max;
 
 pub fn const_gen_gadget(builder: &mut CircuitBuilder<F, D>, n: u64) -> Vec<Target> {
@@ -121,7 +121,7 @@ pub fn ivf_pq_verify_gadget(
         }
     }
     // 2. 计算距离并打表
-    let max_gadget = builder.constant(F::from_canonical_u64(u32::MAX as u64));
+    let max_gadget = builder.constant(F::from_canonical_u64(9223372036854775807)); // 2^63-1
     let mut dis_vec: Vec<Target> = Vec::with_capacity(max_sz);
     let mut dis_set: Vec<Vec<Target>> = Vec::with_capacity(max_sz);
     for i in 0..max_sz {
@@ -153,11 +153,14 @@ pub fn ivf_pq_verify_gadget(
         dis_vec.push(cur_dis);
     }
     // 3. 验证合法性
-    // FIXME: 针对真实ivf-pq系统会有问题
     set_belong_gedget(builder, fs_hash[2..].to_vec(), dis_set, lut_set, f_, t_);
 
+    // FIXME: 这里转成无符号后有bug
+    let zero = builder.zero();
     for i in 0..max_sz - 1 {
-        let sub_gadget = builder.sub(dis_vec[i + 1].clone(), dis_vec[i].clone());
-        builder.range_check(sub_gadget, 32);
+        // let sub_gadget = builder.sub(dis_vec[i + 1].clone(), dis_vec[i].clone());
+        // builder.range_check(sub_gadget, 40);
+        let tmp_target = comp_gadget(builder, dis_vec[i].clone(), dis_vec[i + 1].clone());
+        builder.connect(tmp_target, zero);
     }
 }

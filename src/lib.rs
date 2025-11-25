@@ -151,13 +151,13 @@ fn py_ivf_pq_proof(
 
 #[pyfunction]
 fn py_ivf_pq_verify_proof(
-    ivf_centers: Vec<Vec<u64>>,      // (n_list,D)
-    query: Vec<u64>,                 // (D,)
-    sorted_idx_dis: Vec<Vec<u64>>,   // (n_list,2)
-    filtered_centers: Vec<Vec<u64>>, // (n_probe,D)
-    probe_count: Vec<u64>,           // (n_probe,)
-    filtered_vecs: Vec<Vec<u64>>,    // (max_sz,M)
-    vecs_cluster_hot: Vec<Vec<u64>>, // (max_sz,n_probe)
+    ivf_centers: Vec<Vec<i64>>,      // (n_list,D)
+    query: Vec<i64>,                 // (D,)
+    sorted_idx_dis: Vec<Vec<i64>>,   // (n_list,2)
+    filtered_centers: Vec<Vec<i64>>, // (n_probe,D)
+    probe_count: Vec<i64>,           // (n_probe,)
+    filtered_vecs: Vec<Vec<i64>>,    // (max_sz,M)
+    vecs_cluster_hot: Vec<Vec<i64>>, // (max_sz,n_probe)
     codebooks: Vec<Vec<Vec<i64>>>,   // (M,K,d)
 ) -> PyResult<bool> {
     // let corr = ivf_pq_verify_proof(

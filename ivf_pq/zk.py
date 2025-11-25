@@ -3,26 +3,6 @@ from ivf_pq.util.kmeans import kmeans_with_ids
 
 from zk_IVF_PQ.zk_IVF_PQ import py_ivf_pq_verify_proof
 
-FIELD_SIZE = 2**64 - 2**32 + 1
-
-
-def codebook_convert(code_books):
-    M, K, d = code_books.shape
-    cb = []
-    for i in range(M):
-        tmpi = []
-        for j in range(K):
-            tmpj = []
-            for k in range(d):
-                tmp = int(code_books[i][j][k])
-                if tmp < 0:
-                    tmpj.append(FIELD_SIZE - tmp)
-                else:
-                    tmpj.append(tmp)
-            tmpi.append(tmpj)
-        cb.append(tmpi)
-    return np.array(cb, dtype=np.uint64)
-
 
 def ivf_pq_learn(
     vecs: np.ndarray,
@@ -74,8 +54,6 @@ def zk_ivf_pq_query(
     n_probe=8,
 ):
     max_sz = upperbound(id_groups, n_probe=n_probe)
-    # field_sz = np.int64(2**64 - 2**32 + 1)
-    field_sz = np.int64(-(1 << 32) + 1)
     M, K, _ = code_books.shape
     diff = query - center  # (n, d)，广播减法
     dist2 = (diff * diff).sum(axis=1, dtype=np.int64)
@@ -107,11 +85,11 @@ def zk_ivf_pq_query(
             curr_dist2 = (sub_val * sub_val).sum(dtype=np.int64)
             filtered_dis.append(curr_dist2)
 
-    filtered_idx = np.array(filtered_idx)
-    filtered_sorted_idx = np.argsort(filtered_idx)
-    filtered_idx = filtered_idx[filtered_sorted_idx]
-    filtered_ves = np.array(filtered_ves)[filtered_sorted_idx]  # filtered_vecs
+    filtered_dis = np.array(filtered_dis)
+    filtered_sorted_idx = np.argsort(filtered_dis)
     filtered_dis = np.array(filtered_dis)[filtered_sorted_idx]
+    filtered_idx = np.array(filtered_idx)[filtered_sorted_idx]
+    filtered_ves = np.array(filtered_ves)[filtered_sorted_idx]  # filtered_vecs
     sec_idx = np.array(sec_idx)[filtered_sorted_idx]
     probe_count = np.array(probe_count)  # to use
 
@@ -124,8 +102,6 @@ def zk_ivf_pq_query(
     # filtered_vecs也要扩展
     extend_filtered_vecs = np.zeros([max_sz, M], dtype=np.int64)
     extend_filtered_vecs[:valid_vec_count, :] = filtered_ves
-
-    # code_books = codebook_convert(code_books)
 
     # TODO: 证明
     result = py_ivf_pq_verify_proof(
@@ -140,11 +116,14 @@ def zk_ivf_pq_query(
     )
     print(result)
 
+    return filtered_idx
+
 
 if __name__ == "__main__":
-    # NOTE: 现在开始要很注意类型, 虽然都是大于0, 但在传入前一直以uint64保存
-    vecs = np.random.randint(0, 127, size=[10000, 128], dtype=np.int64)
-    query = np.random.randint(0, 127, size=128, dtype=np.int64)
+    # NOTE: 现在开始要很注意类型, 虽然都是大于0, 但在传入前一直以int64保存
+    vecs = np.random.randint(0, 16383, size=[10000, 128], dtype=np.int64)
+    query = np.random.randint(0, 16383, size=128, dtype=np.int64)
     labels, center, code_books, quant_vecs, id_groups = ivf_pq_learn(vecs)
 
-    zk_ivf_pq_query(query, center, code_books, quant_vecs, id_groups)
+    idxes = zk_ivf_pq_query(query, center, code_books, quant_vecs, id_groups)
+    print(idxes[:16])
