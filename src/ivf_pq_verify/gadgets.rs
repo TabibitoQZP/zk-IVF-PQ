@@ -155,7 +155,6 @@ pub fn ivf_pq_verify_gadget(
     // 3. 验证合法性
     set_belong_gedget(builder, fs_hash[2..].to_vec(), dis_set, lut_set, f_, t_);
 
-    // FIXME: 这里转成无符号后有bug
     let zero = builder.zero();
     for i in 0..max_sz - 1 {
         // let sub_gadget = builder.sub(dis_vec[i + 1].clone(), dis_vec[i].clone());

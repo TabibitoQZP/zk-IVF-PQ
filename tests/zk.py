@@ -21,7 +21,7 @@ if __name__ == "__main__":
 
     print("IVF-PQ learning finished.")
 
-    for i in range(query_vecs.shape[0]):
+    # for i in range(query_vecs.shape[0]):
+    for i in range(1):
         query = np.rint(query_vecs[i]).astype(np.int32)
         top_k_idxes = zk_ivf_pq_query(query, center, code_books, quant_vecs, id_groups)
-        break

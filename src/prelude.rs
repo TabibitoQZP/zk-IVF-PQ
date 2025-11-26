@@ -164,3 +164,14 @@ pub fn input_targets_3d_sign(
     }
     Ok(())
 }
+pub fn input_targets_4d_sign(
+    pw: &mut PartialWitness<F>,
+    targets: Vec<Vec<Vec<Vec<Target>>>>,
+    inputs: Vec<Vec<Vec<Vec<i64>>>>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let x = targets.len();
+    for i in 0..x {
+        input_targets_3d_sign(pw, targets[i].clone(), inputs[i].clone())?;
+    }
+    Ok(())
+}

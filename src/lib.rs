@@ -1,4 +1,5 @@
 pub mod brute_force;
+pub mod circuit_ivf_pq;
 pub mod hash_gadgets;
 pub mod ivf_flat;
 pub mod ivf_pq;
