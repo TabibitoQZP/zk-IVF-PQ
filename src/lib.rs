@@ -12,6 +12,7 @@ pub mod prelude;
 pub mod utils;
 
 use crate::brute_force::proof::{brute_force_proof, sort_brute_force_proof};
+use crate::circuit_ivf_pq::proof::circuit_ivf_pq_proof;
 use crate::hash_gadgets::hash_u64;
 use crate::ivf_flat::proof::ivf_flat_proof;
 use crate::ivf_pq::proof::ivf_pq_proof;
@@ -22,6 +23,19 @@ use crate::pq_flat_com::proof::pq_flat_com_proof;
 use crate::pq_flat_verify::proof::pq_flat_verify_proof;
 use pyo3::prelude::*;
 use std::error::Error;
+
+#[pyfunction]
+fn py_circuit_ivf_pq_proof(
+    query: Vec<i64>,               // 查询向量 (D,)
+    ivf_centers: Vec<Vec<i64>>,    // ivf簇中心 *(n_list,D)
+    vecs: Vec<Vec<Vec<Vec<i64>>>>, // 这里每个都固定给到 (n_probe,max_sz,M,K)
+    hot: Vec<Vec<i64>>,            // 针对vecs是否valid
+    codebooks: Vec<Vec<Vec<i64>>>, // 全局码本 (M,K,d)
+    top_k: i64,                    // 明确取哪top_k
+) -> PyResult<bool> {
+    let corr = circuit_ivf_pq_proof(query, ivf_centers, vecs, hot, codebooks, top_k).is_ok();
+    Ok(corr)
+}
 
 #[pyfunction]
 fn single_hash(input: Vec<u64>) -> PyResult<u64> {
@@ -217,6 +231,7 @@ fn zk_IVF_PQ(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(py_pq_flat_verify_proof, m)?)?;
     m.add_function(wrap_pyfunction!(py_pq_flat_com_proof, m)?)?;
     m.add_function(wrap_pyfunction!(py_ivf_pq_proof, m)?)?;
+    m.add_function(wrap_pyfunction!(py_circuit_ivf_pq_proof, m)?)?;
     m.add_function(wrap_pyfunction!(py_ivf_pq_verify_proof, m)?)?;
     Ok(())
 }

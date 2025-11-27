@@ -40,9 +40,16 @@ def ivf_pq_learn(
 
 
 def upperbound(id_groups, n_probe=8):
+    """
+    这里改成大于等于最大簇数的2^t.
+    """
     size = [v.shape[0] for v in id_groups.values()]
     size.sort()
-    return sum(size[-n_probe:])
+    max_sz = size[-1]
+    round_sz = 1
+    while round_sz < max_sz:
+        round_sz *= 2
+    return n_probe * round_sz
 
 
 def zk_ivf_pq_query(

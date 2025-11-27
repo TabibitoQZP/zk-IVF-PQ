@@ -1,3 +1,4 @@
+use crate::hash_gadgets::merkle_tree_gadget;
 use crate::pq_flat::gadgets::codebooks_query_gadget;
 use crate::pq_flat_verify::gadgets::set_belong_gedget;
 use crate::prelude::*;
@@ -49,6 +50,15 @@ pub fn ivf_pq_verify_gadget(
     let max_sz = filtered_vecs.len();
     let M = codebooks.len();
     let K = codebooks[0].len();
+    let d = codebooks[0][0].len();
+
+    // NOTE: 测试用, 尝试添加merkle哈希后慢多少
+    // merkle_tree_gadget(builder, ivf_centers.clone());
+    // let slide_len = filtered_vecs.len() / n_probe;
+    // for i in 0..n_probe {
+    //     let slide_vecs = filtered_vecs[i * slide_len..(i + 1) * slide_len].to_vec();
+    //     merkle_tree_gadget(builder, slide_vecs);
+    // }
 
     let const_list = const_gen_gadget(
         builder,
