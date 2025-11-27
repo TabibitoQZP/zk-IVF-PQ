@@ -1,5 +1,6 @@
 use crate::circuit_ivf_pq::gadgets::circuit_ivf_pq_gadget;
 use crate::prelude::*;
+use crate::utils::metrics::metrics_eval;
 
 pub fn circuit_ivf_pq_proof(
     query: Vec<i64>,                // 查询向量 (D,)
@@ -8,7 +9,7 @@ pub fn circuit_ivf_pq_proof(
     hot: Vec<Vec<i64>>,             // 针对vecs是否valid
     codebooks: Vec<Vec<Vec<i64>>>,  // 全局码本 (M,K,d)
     top_k: i64,                     // 明确取哪top_k
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(f64, f64, f64, u64, u64), Box<dyn std::error::Error>> {
     let D_ = query.len();
     let n_list = ivf_centers.len();
     let n_probe = vecs.len();
@@ -41,13 +42,8 @@ pub fn circuit_ivf_pq_proof(
     // 设置公开输入和witness
     public_targets_1d(&mut builder, query_targets.clone());
 
-    // 构建电路
-    let mut curr_time = Instant::now();
-    let data = builder.build::<C>();
-    println!("构建电路耗时: {:?}", curr_time.elapsed());
-
     // 输入公开输入和witness
-    curr_time = Instant::now();
+    let curr_time = Instant::now();
     let mut pw = PartialWitness::new();
     input_targets_1d_sign(&mut pw, query_targets, query)?;
     input_targets_2d_sign(&mut pw, ivf_centers_targets, ivf_centers)?;
@@ -56,18 +52,8 @@ pub fn circuit_ivf_pq_proof(
     input_targets_3d_sign(&mut pw, codebooks_targets, codebooks)?;
     println!("输入witness: {:?}", curr_time.elapsed());
 
-    // 证明生成和验证
-    curr_time = Instant::now();
-    let proof = data.prove(pw)?;
-    println!("证明生成: {:?}", curr_time.elapsed());
+    // 整体测试
+    let (build_time, prove_time, verify_time, proof_size, memory_used) = metrics_eval(builder, pw)?;
 
-    // 证明大小
-    let compressed_proof = data.compress(proof.clone())?;
-    let compressed_bytes = compressed_proof.to_bytes();
-    println!("证明大小: {}B", compressed_bytes.len());
-
-    curr_time = Instant::now();
-    let _ = data.verify(proof);
-    println!("证明验证: {:?}", curr_time.elapsed());
-    Ok(())
+    Ok((build_time, prove_time, verify_time, proof_size, memory_used))
 }

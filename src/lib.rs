@@ -21,6 +21,7 @@ use crate::merkle_commit::proof::{merkle_commit_plain_proof, merkle_commit_proof
 use crate::pq_flat::proof::pq_flat_proof;
 use crate::pq_flat_com::proof::pq_flat_com_proof;
 use crate::pq_flat_verify::proof::pq_flat_verify_proof;
+use pyo3::exceptions::PyRuntimeError;
 use pyo3::prelude::*;
 use std::error::Error;
 
@@ -32,9 +33,12 @@ fn py_circuit_ivf_pq_proof(
     hot: Vec<Vec<i64>>,            // 针对vecs是否valid
     codebooks: Vec<Vec<Vec<i64>>>, // 全局码本 (M,K,d)
     top_k: i64,                    // 明确取哪top_k
-) -> PyResult<bool> {
-    let corr = circuit_ivf_pq_proof(query, ivf_centers, vecs, hot, codebooks, top_k).is_ok();
-    Ok(corr)
+) -> PyResult<(f64, f64, f64, u64, u64)> {
+    let (build_time, prove_time, verify_time, proof_size, memory_used) =
+        circuit_ivf_pq_proof(query, ivf_centers, vecs, hot, codebooks, top_k)
+            .map_err(|e| PyRuntimeError::new_err(format!("circuit_ivf_pq_proof failed: {e}")))?;
+
+    Ok((build_time, prove_time, verify_time, proof_size, memory_used))
 }
 
 #[pyfunction]

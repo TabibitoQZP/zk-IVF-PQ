@@ -1,15 +1,3 @@
-"""
-函数签名
-fn py_circuit_ivf_pq_proof(
-    query: Vec<i64>,               // 查询向量 (D,)
-    ivf_centers: Vec<Vec<i64>>,    // ivf簇中心 *(n_list,D)
-    vecs: Vec<Vec<Vec<Vec<i64>>>>, // 这里每个都固定给到 (n_probe,max_sz,M,K)
-    hot: Vec<Vec<i64>>,            // 针对vecs是否valid
-    codebooks: Vec<Vec<Vec<i64>>>, // 全局码本 (M,K,d)
-    top_k: i64,                    // 明确取哪top_k
-) -> PyResult<bool>
-"""
-
 import argparse
 import numpy as np
 from zk_IVF_PQ.zk_IVF_PQ import py_circuit_ivf_pq_proof
@@ -53,23 +41,33 @@ def make_block_onehot(
     return out
 
 
+"""
+函数签名
+fn py_circuit_ivf_pq_proof(
+    query: Vec<i64>,               // 查询向量 (D,)
+    ivf_centers: Vec<Vec<i64>>,    // ivf簇中心 *(n_list,D)
+    vecs: Vec<Vec<Vec<Vec<i64>>>>, // 这里每个都固定给到 (n_probe,max_sz,M,K)
+    hot: Vec<Vec<i64>>,            // 针对vecs是否valid
+    codebooks: Vec<Vec<Vec<i64>>>, // 全局码本 (M,K,d)
+    top_k: i64,                    // 明确取哪top_k
+) -> PyResult<bool>
+"""
+
+
 def bench():
     rng = np.random.default_rng(seed=seed)
 
     query = rng.integers(0, 127, size=(D,), dtype=np.uint32, endpoint=True)
     ivf_centers = rng.integers(0, 127, size=(n_list, D), dtype=np.uint32, endpoint=True)
 
-    probe_count = np.array([avg_cnt] * n_probe, dtype=np.uint32)
-    vecs_cluster_hot = make_block_onehot(max_sz, n_probe, avg_cnt)
-
-    codebooks = np.zeros((M, K, d), dtype=np.uint32)
-    filtered_vecs = rng.integers(
-        0, K - 1, size=(max_sz, M), dtype=np.uint32, endpoint=True
-    )
+    idx = rng.integers(0, K, size=(n_probe, max_sz, M))
+    vecs = np.eye(K, dtype=np.uint32)[idx]
+    hot = rng.integers(0, 1, size=(n_probe, max_sz), dtype=np.uint32, endpoint=True)
+    codebooks = rng.integers(0, 127, size=(M, K, d), dtype=np.uint32, endpoint=True)
 
     top_k = 32
 
-    result = py_circuit_ivf_pq_proof()
+    result = py_circuit_ivf_pq_proof(query, ivf_centers, vecs, hot, codebooks, top_k)
 
     print(result)
 
