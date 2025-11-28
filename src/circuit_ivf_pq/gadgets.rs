@@ -6,6 +6,7 @@ use crate::utils::common_gadgets::static_lookup_gadget;
 use crate::utils::dis_gadgets::distance;
 use crate::utils::nn_gadgets::comp_gadget;
 
+// 验证一个row是否是one-hot
 pub fn one_hot_gadget(builder: &mut CircuitBuilder<F, D>, row: Vec<Target>) {
     let one = builder.one();
     for item in row.clone() {
@@ -15,6 +16,7 @@ pub fn one_hot_gadget(builder: &mut CircuitBuilder<F, D>, row: Vec<Target>) {
     builder.connect(sum_val, one);
 }
 
+// 点乘两个向量
 pub fn dot_prod_gadget(
     builder: &mut CircuitBuilder<F, D>,
     a: Vec<Target>,

@@ -79,3 +79,56 @@ pub fn fs_oracle(src: Vec<u64>, n: usize) -> Vec<u64> {
     }
     src_cl[src.len()..].to_vec()
 }
+
+pub fn tree_depth(mut leaf_len: usize) -> usize {
+    let mut depth: usize = 0;
+    while leaf_len > 1 {
+        leaf_len /= 2;
+        depth += 1;
+    }
+    depth
+}
+
+pub fn hash_tree_gen(mut hash_list: Vec<u64>) -> Vec<u64> {
+    let mut hash_len = hash_list.len();
+    let mut hash_tree: Vec<u64> = Vec::new();
+    hash_tree.extend(hash_list.clone());
+    while hash_len > 1 {
+        hash_len /= 2;
+        let mut curr_hash_list: Vec<u64> = Vec::with_capacity(hash_len);
+        for i in 0..hash_len {
+            curr_hash_list.push(hash_u64(vec![hash_list[2 * i], hash_list[2 * i + 1]]));
+        }
+        hash_list = curr_hash_list.clone();
+        curr_hash_list.extend(hash_tree);
+        hash_tree = curr_hash_list;
+    }
+    hash_tree
+}
+
+pub fn hash_tree_path(mut idx: u64, hash_tree: Vec<u64>) -> Vec<Vec<u64>> {
+    let depth = tree_depth((hash_tree.len() + 1) / 2);
+    let mut idx_bits: Vec<u64> = Vec::with_capacity(depth);
+    for i in 0..depth {
+        idx_bits.push(idx - (idx / 2 * 2));
+        idx /= 2;
+    }
+    idx_bits.reverse();
+    let mut other_part: Vec<u64> = Vec::with_capacity(depth);
+    let mut curr_idx = 0;
+    for i in idx_bits.clone() {
+        curr_idx = curr_idx * 2 + i + 1;
+        if curr_idx % 2 == 0 {
+            other_part.push(hash_tree[curr_idx as usize - 1]);
+        } else {
+            other_part.push(hash_tree[curr_idx as usize + 1]);
+        }
+    }
+    idx_bits.reverse();
+    other_part.reverse();
+    let mut pairs: Vec<Vec<u64>> = Vec::with_capacity(depth);
+    for i in 0..depth {
+        pairs.push(vec![idx_bits[i], other_part[i]]);
+    }
+    pairs
+}

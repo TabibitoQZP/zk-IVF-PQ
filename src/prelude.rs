@@ -85,6 +85,14 @@ pub fn add_targets_4d(
 }
 
 // input_targets系列
+pub fn input_targets_0d(
+    pw: &mut PartialWitness<F>,
+    targets: Target,
+    inputs: u64,
+) -> Result<(), Box<dyn std::error::Error>> {
+    pw.set_target(targets, F::from_canonical_u64(inputs))?;
+    Ok(())
+}
 pub fn input_targets_1d(
     pw: &mut PartialWitness<F>,
     targets: Vec<Target>,
@@ -131,6 +139,14 @@ pub fn input_targets_4d(
 }
 
 // input_targets系列
+pub fn input_targets_0d_sign(
+    pw: &mut PartialWitness<F>,
+    targets: Target,
+    inputs: i64,
+) -> Result<(), Box<dyn std::error::Error>> {
+    pw.set_target(targets, F::from_noncanonical_i64(inputs))?;
+    Ok(())
+}
 pub fn input_targets_1d_sign(
     pw: &mut PartialWitness<F>,
     targets: Vec<Target>,
