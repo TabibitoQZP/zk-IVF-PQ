@@ -1,6 +1,7 @@
 use crate::hash_gadgets::{hash_tree_gen, hash_tree_path, tree_depth};
 use crate::merkle_ver::circuit_based::circuit_based_ivf_pq_gadget;
 use crate::merkle_ver::ivf_pq_merkle::{commit_codebook_i64, merkle_cluster_i64};
+use crate::merkle_ver::standalone_commitment::commitment_relevant_gen;
 use crate::prelude::*;
 use crate::utils::metrics::metrics_eval;
 
@@ -42,7 +43,7 @@ pub fn hash_ivf_center(i: usize, c_i: Vec<i64>, root_i: u64) -> u64 {
 
 pub fn circuit_based_ivf_pq_proof(
     query: Vec<i64>,               // 查询向量 (D,)
-    mut ivf_center: Vec<Vec<i64>>, // ivf簇中心 (n_list,D)
+    ivf_center: Vec<Vec<i64>>,     // ivf簇中心 (n_list,D)
     cluster_idxes: Vec<i64>,       // 簇索引 (n_probe,)
     vpqss: Vec<Vec<Vec<i64>>>,     // 这里给原始向量, 手动改one-hot (n_probe,n,M)
     valids: Vec<Vec<i64>>,         // vpqss中向量是否valid (n_probe,n)
@@ -60,32 +61,40 @@ pub fn circuit_based_ivf_pq_proof(
     let n_probe = vpqss.len();
     let n = vpqss[0].len();
 
+    let (depth, root, codebooks_root, cluster_center, cluster_pairs) = commitment_relevant_gen(
+        ivf_center.clone(),
+        cluster_idxes.clone(),
+        vpqss.clone(),
+        codebooks.clone(),
+        ivf_roots.clone(),
+    );
+
     let vpqss_onehot = one_hot_gen_3d(vpqss.clone(), K);
-    let codebooks_root = commit_codebook_i64(codebooks.clone());
-    let cluster_center: Vec<Vec<i64>> = cluster_idxes
-        .clone()
-        .into_iter()
-        .map(|item| ivf_center[item as usize].clone())
-        .collect();
-
-    // 计算ivf的hash树
-    let hash_list: Vec<u64> = (0..n_list)
-        .map(|i| hash_ivf_center(i, ivf_center[i].clone(), ivf_roots[i]))
-        .collect();
-    let depth = tree_depth(hash_list.len());
-    let hash_tree = hash_tree_gen(hash_list);
-    let root = hash_tree[0]; // 0号是全局root
-
-    // 计算cluster的root
-    let cluster_roots: Vec<u64> = (0..n_probe)
-        .map(|item| ivf_roots[cluster_idxes[item] as usize])
-        .collect();
-    // 计算root对应的hash路径
-    let mut cluster_pairs: Vec<Vec<Vec<u64>>> = Vec::with_capacity(n_probe);
-    for i in 0..n_probe {
-        let pairs = hash_tree_path(cluster_idxes[i] as u64, hash_tree.clone());
-        cluster_pairs.push(pairs);
-    }
+    // let codebooks_root = commit_codebook_i64(codebooks.clone());
+    // let cluster_center: Vec<Vec<i64>> = cluster_idxes
+    //     .clone()
+    //     .into_iter()
+    //     .map(|item| ivf_center[item as usize].clone())
+    //     .collect();
+    //
+    // // 计算ivf的hash树
+    // let hash_list: Vec<u64> = (0..n_list)
+    //     .map(|i| hash_ivf_center(i, ivf_center[i].clone(), ivf_roots[i]))
+    //     .collect();
+    // let depth = tree_depth(hash_list.len());
+    // let hash_tree = hash_tree_gen(hash_list);
+    // let root = hash_tree[0]; // 0号是全局root
+    //
+    // // 计算cluster的root
+    // let cluster_roots: Vec<u64> = (0..n_probe)
+    //     .map(|item| ivf_roots[cluster_idxes[item] as usize])
+    //     .collect();
+    // // 计算root对应的hash路径
+    // let mut cluster_pairs: Vec<Vec<Vec<u64>>> = Vec::with_capacity(n_probe);
+    // for i in 0..n_probe {
+    //     let pairs = hash_tree_path(cluster_idxes[i] as u64, hash_tree.clone());
+    //     cluster_pairs.push(pairs);
+    // }
 
     let mut builder = make_builder();
     let query_targets = builder.add_virtual_targets(D_);

@@ -63,7 +63,7 @@ pub fn circuit_based_ivf_pq_gadget(
         vpqss.push(mat);
     }
 
-    // # 承诺部分
+    // 承诺部分
     standalone_commitment_gadget(
         builder,
         query.clone(),
@@ -91,8 +91,6 @@ pub fn circuit_based_ivf_pq_gadget(
         .collect(); // (n_list,)
 
     // 冒泡排序进行交换
-    // NOTE: 这里可能可以用permute好的idxes和ivf_center代替cluster_idxes, cluster_center
-    // 但实际上ivf_center做交换会比较重, 所以仍然采用原方案, 手动传入
     for i in 0..n_probe {
         for j in ((i + 1)..n_list).rev() {
             let comp_result = comp_gadget(builder, center_dis[j - 1], center_dis[j]);

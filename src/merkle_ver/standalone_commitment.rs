@@ -65,23 +65,15 @@ use crate::merkle_ver::circuit_based_proof::hash_ivf_center;
 use crate::merkle_ver::ivf_pq_merkle::commit_codebook_i64;
 use crate::utils::metrics::metrics_eval;
 
-pub fn standalone_commitment_proof(
-    query: Vec<i64>,               // 查询向量 (D,)
-    mut ivf_center: Vec<Vec<i64>>, // ivf簇中心 (n_list,D)
+pub fn commitment_relevant_gen(
+    ivf_center: Vec<Vec<i64>>,     // ivf簇中心 (n_list,D)
     cluster_idxes: Vec<i64>,       // 簇索引 (n_probe,)
     vpqss: Vec<Vec<Vec<i64>>>,     // 这里给原始向量, 手动改one-hot (n_probe,n,M)
-    valids: Vec<Vec<i64>>,         // vpqss中向量是否valid (n_probe,n)
-    itemss: Vec<Vec<i64>>,         // vpqss中向量对应的查询量 (n_probe,n)
     codebooks: Vec<Vec<Vec<i64>>>, // 全局码本 (M,K,d)
     ivf_roots: Vec<u64>,           // 这里给一下ivf各个root, 用来手算和还原数据 (n_list,)
-) -> Result<(f64, f64, f64, u64, u64), Box<dyn std::error::Error>> {
-    let D_ = query.len();
-    let M = codebooks.len();
-    let K = codebooks[0].len();
-    let d = codebooks[0][0].len();
+) -> (usize, u64, u64, Vec<Vec<i64>>, Vec<Vec<Vec<u64>>>) {
     let n_list = ivf_center.len();
     let n_probe = vpqss.len();
-    let n = vpqss[0].len();
 
     let codebooks_root = commit_codebook_i64(codebooks.clone());
     let cluster_center: Vec<Vec<i64>> = cluster_idxes
@@ -108,6 +100,59 @@ pub fn standalone_commitment_proof(
         let pairs = hash_tree_path(cluster_idxes[i] as u64, hash_tree.clone());
         cluster_pairs.push(pairs);
     }
+    (depth, root, codebooks_root, cluster_center, cluster_pairs)
+}
+
+pub fn standalone_commitment_proof(
+    query: Vec<i64>,               // 查询向量 (D,)
+    mut ivf_center: Vec<Vec<i64>>, // ivf簇中心 (n_list,D)
+    cluster_idxes: Vec<i64>,       // 簇索引 (n_probe,)
+    vpqss: Vec<Vec<Vec<i64>>>,     // 这里给原始向量, 手动改one-hot (n_probe,n,M)
+    valids: Vec<Vec<i64>>,         // vpqss中向量是否valid (n_probe,n)
+    itemss: Vec<Vec<i64>>,         // vpqss中向量对应的查询量 (n_probe,n)
+    codebooks: Vec<Vec<Vec<i64>>>, // 全局码本 (M,K,d)
+    ivf_roots: Vec<u64>,           // 这里给一下ivf各个root, 用来手算和还原数据 (n_list,)
+) -> Result<(f64, f64, f64, u64, u64), Box<dyn std::error::Error>> {
+    let D_ = query.len();
+    let M = codebooks.len();
+    let K = codebooks[0].len();
+    let d = codebooks[0][0].len();
+    let n_list = ivf_center.len();
+    let n_probe = vpqss.len();
+    let n = vpqss[0].len();
+    let (depth, root, codebooks_root, cluster_center, cluster_pairs) = commitment_relevant_gen(
+        ivf_center.clone(),
+        cluster_idxes.clone(),
+        vpqss.clone(),
+        codebooks.clone(),
+        ivf_roots.clone(),
+    );
+
+    // let codebooks_root = commit_codebook_i64(codebooks.clone());
+    // let cluster_center: Vec<Vec<i64>> = cluster_idxes
+    //     .clone()
+    //     .into_iter()
+    //     .map(|item| ivf_center[item as usize].clone())
+    //     .collect();
+    //
+    // // 计算ivf的hash树
+    // let hash_list: Vec<u64> = (0..n_list)
+    //     .map(|i| hash_ivf_center(i, ivf_center[i].clone(), ivf_roots[i]))
+    //     .collect();
+    // let depth = tree_depth(hash_list.len());
+    // let hash_tree = hash_tree_gen(hash_list);
+    // let root = hash_tree[0]; // 0号是全局root
+    //
+    // // 计算cluster的root
+    // let cluster_roots: Vec<u64> = (0..n_probe)
+    //     .map(|item| ivf_roots[cluster_idxes[item] as usize])
+    //     .collect();
+    // // 计算root对应的hash路径
+    // let mut cluster_pairs: Vec<Vec<Vec<u64>>> = Vec::with_capacity(n_probe);
+    // for i in 0..n_probe {
+    //     let pairs = hash_tree_path(cluster_idxes[i] as u64, hash_tree.clone());
+    //     cluster_pairs.push(pairs);
+    // }
 
     let mut builder = make_builder();
     let query_targets = builder.add_virtual_targets(D_);

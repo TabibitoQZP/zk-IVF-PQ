@@ -10,6 +10,7 @@ pub fn const_gen_gadget(builder: &mut CircuitBuilder<F, D>, n: u64) -> Vec<Targe
     let targets: Vec<Target> = (0..n)
         .map(|item| builder.constant(F::from_canonical_u64(item)))
         .collect();
+    builder.register_public_inputs(&targets);
     targets
 }
 

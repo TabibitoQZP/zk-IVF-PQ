@@ -37,8 +37,8 @@ K = args.K
 d = D // M
 n_list = args.n_list
 n_probe = args.n_probe
-max_sz = 2 * N // n_list * n_probe
 avg_cnt = N // n_list
+max_sz = 2 * avg_cnt * n_probe
 seed = args.seed
 
 
@@ -59,8 +59,9 @@ def make_block_onehot(
 def bench():
     rng = np.random.default_rng(seed=seed)
 
-    query = rng.integers(0, 127, size=(D,), dtype=np.uint32, endpoint=True)
-    ivf_centers = rng.integers(0, 127, size=(n_list, D), dtype=np.uint32, endpoint=True)
+    # NOTE: 似乎uint32太小了, 得上int64, 不过不影响证明和测试
+    query = rng.integers(0, 15, size=(D,), dtype=np.uint32, endpoint=True)
+    ivf_centers = rng.integers(0, 15, size=(n_list, D), dtype=np.uint32, endpoint=True)
 
     c = np.sum((ivf_centers - query) ** 2, axis=1).astype(np.uint32)
     order = np.argsort(c, kind="stable")

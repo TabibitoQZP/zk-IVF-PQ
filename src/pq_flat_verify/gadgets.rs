@@ -10,36 +10,36 @@ pub fn set_belong_gedget(
     f_: Vec<Target>,         // 外部计算的f
     t_: Vec<Target>,         // 外部计算的, 扩增的t
 ) {
-    // let mut f: Vec<Target> = f_set
-    //     .into_iter()
-    //     .map(|row| compress_gadget(builder, fs_hash[0], row))
-    //     .collect();
-    // let mut t: Vec<Target> = t_set
-    //     .into_iter()
-    //     .map(|row| compress_gadget(builder, fs_hash[0], row))
-    //     .collect();
-    //
-    // // 外部计算的f_, t_满足扩增后等长的要求
-    // while t.len() < t_.len() {
-    //     t.push(t[0]);
-    // }
-    // while f.len() < f_.len() {
-    //     f.push(f[0]);
-    // }
-    //
-    // simple_set_equal_gadget(builder, fs_hash[1], f.clone(), f_.clone());
-    // simple_set_equal_gadget(builder, fs_hash[2], t.clone(), t_.clone());
-    //
-    // let sz = f_.len();
-    // builder.connect(f_[0], t_[0]);
-    //
-    // let zero = builder.zero();
-    // for i in 1..sz {
-    //     let left = builder.sub(f_[i], t_[i]);
-    //     let right = builder.sub(f_[i], f_[i - 1]);
-    //     let prod = builder.mul(left, right);
-    //     builder.connect(prod, zero);
-    // }
+    let mut f: Vec<Target> = f_set
+        .into_iter()
+        .map(|row| compress_gadget(builder, fs_hash[0], row))
+        .collect();
+    let mut t: Vec<Target> = t_set
+        .into_iter()
+        .map(|row| compress_gadget(builder, fs_hash[0], row))
+        .collect();
+
+    // 外部计算的f_, t_满足扩增后等长的要求
+    while t.len() < t_.len() {
+        t.push(t[0]);
+    }
+    while f.len() < f_.len() {
+        f.push(f[0]);
+    }
+
+    simple_set_equal_gadget(builder, fs_hash[1], f.clone(), f_.clone());
+    simple_set_equal_gadget(builder, fs_hash[2], t.clone(), t_.clone());
+
+    let sz = f_.len();
+    builder.connect(f_[0], t_[0]);
+
+    let zero = builder.zero();
+    for i in 1..sz {
+        let left = builder.sub(f_[i], t_[i]);
+        let right = builder.sub(f_[i], f_[i - 1]);
+        let prod = builder.mul(left, right);
+        builder.connect(prod, zero);
+    }
 }
 
 /*
