@@ -99,7 +99,7 @@ pub fn circuit_based_ivf_pq_proof(
     let valids_targets = add_targets_2d(&mut builder, vec![n_probe, n]);
     let itemss_targets = add_targets_2d(&mut builder, vec![n_probe, n]);
     let vpqss_onehot_targets = add_targets_4d(&mut builder, vec![n_probe, n, M, K]);
-    let cluster_pairs_targets = add_targets_3d(&mut builder, vec![n_probe, depth]);
+    let cluster_pairs_targets = add_targets_3d(&mut builder, vec![n_probe, depth, 2]);
 
     circuit_based_ivf_pq_gadget(
         &mut builder,
