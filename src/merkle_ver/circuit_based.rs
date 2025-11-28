@@ -5,6 +5,7 @@ use crate::ivf_pq_verify::gadgets::vec_sub_gadget;
 use crate::merkle_ver::ivf_pq_merkle::{
     commit_codebook_gadget, merkle_cluster_gadget, merkle_ivf_gadget,
 };
+use crate::merkle_ver::standalone_commitment::standalone_commitment_gadget;
 use crate::pq_flat::gadgets::codebooks_query_gadget;
 use crate::prelude::*;
 use crate::utils::dis_gadgets::distance;
@@ -63,35 +64,21 @@ pub fn circuit_based_ivf_pq_gadget(
     }
 
     // # 承诺部分
-    // 0. 正式验证之前, 将root和codebooks_root公开
-    builder.register_public_input(root);
-    builder.register_public_input(codebooks_root);
-    // 1. 验证ivf中心承诺
-    let root_target = merkle_ivf_gadget(builder, ivf_center.clone(), ivf_roots);
-    builder.connect(root_target, root);
-    // 2. 验证codebooks承诺
-    let codebooks_root_target = commit_codebook_gadget(builder, codebooks.clone());
-    builder.connect(codebooks_root_target, codebooks_root);
-    // 3. 计算每个给定的merkle根承诺
-    let mut ivf_root_targets: Vec<Target> = Vec::with_capacity(n_probe);
-    for i in 0..n_probe {
-        let curr_root = merkle_cluster_gadget(
-            builder,
-            cluster_idxes[i].clone(),
-            valids[i].clone(),
-            itemss[i].clone(),
-            vpqss[i].clone(),
-        );
-        ivf_root_targets.push(curr_root);
-    }
-    // 验证 cluster_idxes, cluster_center, ivf_root_targets构成的集合满足merkle路径
-    for i in 0..n_probe {
-        let mut curr_leaf: Vec<Target> = Vec::with_capacity(D_ + 2);
-        curr_leaf.push(cluster_idxes[i].clone());
-        curr_leaf.extend(cluster_center[i].clone());
-        curr_leaf.push(ivf_root_targets[i].clone());
-        merkle_back_gadget(builder, curr_leaf, cluster_pairs[i].clone());
-    }
+    standalone_commitment_gadget(
+        builder,
+        query.clone(),
+        root.clone(),
+        codebooks_root.clone(),
+        codebooks.clone(),
+        ivf_center.clone(),
+        ivf_roots.clone(),
+        cluster_idxes.clone(),
+        cluster_center.clone(),
+        valids.clone(),
+        itemss.clone(),
+        cluster_pairs.clone(),
+        vpqss.clone(),
+    );
 
     // 初始化索引和距离
     let mut idxes: Vec<Target> = (0..n_list)
