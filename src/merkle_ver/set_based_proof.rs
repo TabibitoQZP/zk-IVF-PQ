@@ -90,7 +90,7 @@ pub fn set_based_ivf_pq_proof(
                 let k_idx = vpqss[i][j][k];
                 let curr_dis = luts[i][k][k_idx as usize];
                 row.push(curr_dis);
-                vpqss_set.push(vec![i as i64, j as i64, k_idx, curr_dis]);
+                vpqss_set.push(vec![i as i64, k as i64, k_idx, curr_dis]);
             }
             mat.push(row);
         }

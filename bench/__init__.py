@@ -30,7 +30,7 @@ def data_gen(D, n_list, M, K, d, n_probe, n):
     """
     统一的数据生成接口
     """
-    rng = np.random.default_rng()
+    rng = np.random.default_rng(seed=43)
 
     query = rng.integers(0, MAX_VAL, size=(D,), dtype=np.int64, endpoint=True)
     ivf_center = rng.integers(
