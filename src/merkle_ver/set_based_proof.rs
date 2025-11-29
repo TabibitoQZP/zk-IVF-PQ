@@ -38,7 +38,6 @@ pub fn distance_i64(src: Vec<i64>, dst: Vec<i64>) -> i64 {
 pub fn set_based_ivf_pq_proof(
     query: Vec<i64>,               // 查询向量 (D,)
     ivf_center: Vec<Vec<i64>>,     // ivf簇中心 (n_list,D)
-    cluster_idxes: Vec<i64>,       // 簇索引 (n_probe,)
     vpqss: Vec<Vec<Vec<i64>>>,     // 这里给原始向量, 手动改one-hot (n_probe,n,M)
     valids: Vec<Vec<i64>>,         // vpqss中向量是否valid (n_probe,n)
     itemss: Vec<Vec<i64>>,         // vpqss中向量对应的查询量 (n_probe,n)
@@ -57,9 +56,13 @@ pub fn set_based_ivf_pq_proof(
     let M = vpqss[0][0].len();
     let K = codebooks[0].len();
 
+    let cluster_idxes: Vec<i64> = (0..n_probe)
+        .map(|i| cluster_idx_dis[i][0].clone())
+        .collect();
+
     let (depth, root, codebooks_root, cluster_center, cluster_pairs) = commitment_relevant_gen(
         ivf_center.clone(),
-        cluster_idxes.clone(),
+        cluster_idxes,
         vpqss.clone(),
         codebooks.clone(),
         ivf_roots.clone(),
@@ -74,7 +77,7 @@ pub fn set_based_ivf_pq_proof(
     let centers: Vec<Vec<i64>> = (0..n_probe)
         .map(|i| ivf_center[cluster_idx_dis[i][0] as usize].clone())
         .collect();
-    let luts = luts_gen_i64(&codebooks, &query, &centers);
+    let luts = luts_gen_i64(&codebooks, &query, &centers); // (n_probe,M,K)
 
     // 计算vpqss_dis, 并压一个集合
     let mut vpqss_dis: Vec<Vec<Vec<i64>>> = Vec::with_capacity(n_probe); // (n_probe,n,M)

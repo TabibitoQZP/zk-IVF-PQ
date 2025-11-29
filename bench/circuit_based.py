@@ -1,48 +1,7 @@
-import argparse
 import numpy as np
-from zk_IVF_PQ.zk_IVF_PQ import py_circuit_based_with_merkle, single_hash
+from zk_IVF_PQ.zk_IVF_PQ import py_circuit_based_with_merkle
 
-parser = argparse.ArgumentParser()
-parser.add_argument("--N", default=1024, type=int)
-parser.add_argument("--D", default=128, type=int)
-parser.add_argument("--M", default=8, type=int)
-parser.add_argument("--K", default=16, type=int)
-parser.add_argument("--n_list", default=128, type=int)
-parser.add_argument("--n_probe", default=8, type=int)
-
-args = parser.parse_args()
-
-N = args.N
-D = args.D
-M = args.M
-K = args.K
-n_list = args.n_list
-n_probe = args.n_probe
-n = N // n_list
-d = D // M
-
-
-MAX_VAL = 65535
-
-
-def cluster_gen(idx, n, M, K, rng=None):
-    if rng is None:
-        rng = np.random.default_rng()
-    vpqs = rng.integers(0, K, size=(n, M), dtype=np.int64, endpoint=False)
-    valid = rng.integers(0, 1, size=(n), dtype=np.int64, endpoint=True)
-    items = rng.integers(0, MAX_VAL, size=(n), dtype=np.int64, endpoint=True)
-
-    hash_list = []
-    for i in range(n):
-        left = np.array([idx, i, valid[i], items[i]], dtype=np.int64)
-        hash_list.append(single_hash(np.concatenate([left, vpqs[i]])))
-
-    while len(hash_list) > 1:
-        hash_list = [
-            single_hash([hash_list[2 * i], hash_list[2 * i + 1]])
-            for i in range(len(hash_list) // 2)
-        ]
-    return vpqs, valid, items, hash_list[0]
+from bench import data_gen
 
 
 """
@@ -62,35 +21,21 @@ pub fn circuit_based_ivf_pq_proof(
 """
 
 
-def bench():
-    rng = np.random.default_rng()
-
-    query = rng.integers(0, MAX_VAL, size=(D,), dtype=np.int64, endpoint=True)
-    ivf_center = rng.integers(
-        0, MAX_VAL, size=(n_list, D), dtype=np.int64, endpoint=True
-    )
-    codebooks = rng.integers(0, MAX_VAL, size=(M, K, d), dtype=np.int64, endpoint=True)
-
-    c = np.sum((ivf_center - query) ** 2, axis=1).astype(np.int64)
-    order = np.argsort(c, kind="stable")
-    order = order.astype(np.int64)
-    cluster_idxes = order[:n_probe]
-
-    vpqss = []
-    valids = []
-    itemss = []
-    ivf_roots = []
-    for i in range(n_list):
-        vpqs, valid, items, curr_root = cluster_gen(i, n, M, K, rng)
-        vpqss.append(vpqs)
-        valids.append(valid)
-        itemss.append(items)
-        ivf_roots.append(curr_root)
-
-    ivf_roots = np.array(ivf_roots, dtype=np.uint64)
-    vpqss = np.stack([vpqss[i] for i in cluster_idxes], axis=0)
-    valids = np.stack([valids[i] for i in cluster_idxes], axis=0)
-    itemss = np.stack([itemss[i] for i in cluster_idxes], axis=0)
+def bench(D, n_list, M, K, d, n_probe, n, top_k=64):
+    """
+    这里的bench本质上要求zk系统自主完成一整套ivf-pq的计算,
+    所以不需要实际运算, 给出结果即可
+    """
+    (
+        query,
+        ivf_center,
+        cluster_idxes,
+        vpqss,
+        valids,
+        itemss,
+        codebooks,
+        ivf_roots,
+    ) = data_gen(D, n_list, M, K, d, n_probe, n)
 
     result = py_circuit_based_with_merkle(
         query,
@@ -101,11 +46,31 @@ def bench():
         itemss,
         codebooks,
         ivf_roots,
-        64,
+        top_k,
     )
     print(result)
     return result
 
 
 if __name__ == "__main__":
-    bench()
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--N", default=1024, type=int)
+    parser.add_argument("--D", default=128, type=int)
+    parser.add_argument("--M", default=8, type=int)
+    parser.add_argument("--K", default=16, type=int)
+    parser.add_argument("--n_list", default=128, type=int)
+    parser.add_argument("--n_probe", default=8, type=int)
+
+    args = parser.parse_args()
+
+    N = args.N
+    D = args.D
+    M = args.M
+    K = args.K
+    n_list = args.n_list
+    n_probe = args.n_probe
+    n = N // n_list
+    d = D // M
+    bench(D, n_list, M, K, d, n_probe, n)
