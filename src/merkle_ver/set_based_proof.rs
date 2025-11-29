@@ -43,10 +43,10 @@ pub fn set_based_ivf_pq_proof(
     itemss: Vec<Vec<i64>>,         // vpqss中向量对应的查询量 (n_probe,n)
     codebooks: Vec<Vec<Vec<i64>>>, // 全局码本 (M,K,d)
     ivf_roots: Vec<u64>,           // 这里给一下ivf各个root, 用来手算和还原数据 (n_list,)
-    top_k: i64,                    // 明确取哪top_k
+    top_k: i64,                     // 明确取哪top_k
     // 后面的可以在rust内部算, 也可以python端算完传入, 这里用传入实现, 懒得写了...
-    cluster_idx_dis: Vec<Vec<i64>>,        // (n_list,2)
-    ordered_vpqss_item_dis: Vec<Vec<i64>>, // vpqss中计算的距离和item集合 (n_probe*n,2)
+    cluster_idx_dis: Vec<Vec<i64>>,         // (n_list,2)
+    _ordered_vpqss_item_dis: Vec<Vec<i64>>, // vpqss中计算的距离和item集合 (n_probe*n,2)
 ) -> Result<(f64, f64, f64, u64, u64), Box<dyn std::error::Error>> {
     let d = codebooks[0][0].len();
     let D_ = query.len();
@@ -97,6 +97,23 @@ pub fn set_based_ivf_pq_proof(
         vpqss_dis.push(mat);
     }
 
+    // 基于vpqss_dis手算ordered_vpqss_item_dis
+    let max_dis: i64 = (1_i64 << 62) - 1;
+    let mut ordered_vpqss_item_dis: Vec<Vec<i64>> = Vec::with_capacity(n_probe * n);
+    for i in 0..n_probe {
+        for j in 0..n {
+            let mut curr_dis: i64 = 0;
+            for k in 0..M {
+                curr_dis += vpqss_dis[i][j][k];
+            }
+            if valids[i][j] == 0 {
+                curr_dis = max_dis;
+            }
+            ordered_vpqss_item_dis.push(vec![itemss[i][j], curr_dis]);
+        }
+    }
+    ordered_vpqss_item_dis.sort_by_key(|row| row[1]);
+
     // 压lut_set
     let mut lut_set: Vec<Vec<i64>> = Vec::with_capacity(n_probe * M * K);
     for i in 0..n_probe {
@@ -106,7 +123,7 @@ pub fn set_based_ivf_pq_proof(
             }
         }
     }
-    let (f_, t_) = convert_ft_set_i64(vpqss_set, lut_set, fs_hash[4] as i64);
+    let (f_, t_) = convert_ft_set_i64(vpqss_set, lut_set, fs_hash[4]);
     let f_t_sz = f_.len();
 
     let mut builder = make_builder();
@@ -167,11 +184,7 @@ pub fn set_based_ivf_pq_proof(
     input_targets_3d(&mut pw, cluster_pairs_targets, cluster_pairs)?;
     input_targets_3d_sign(&mut pw, vpqss_targets, vpqss)?;
     input_targets_3d_sign(&mut pw, vpqss_dis_targets, vpqss_dis)?;
-    input_targets_2d_sign(
-        &mut pw,
-        ordered_vpqss_item_dis_targets,
-        ordered_vpqss_item_dis,
-    )?;
+    input_targets_2d_sign(&mut pw, ordered_vpqss_item_dis_targets, ordered_vpqss_item_dis)?;
     input_targets_2d_sign(&mut pw, cluster_idx_dis_targets, cluster_idx_dis)?;
     input_targets_1d(&mut pw, f__targets, f_)?;
     input_targets_1d(&mut pw, t__targets, t_)?;

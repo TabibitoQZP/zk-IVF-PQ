@@ -3,8 +3,8 @@ use crate::hash_gadgets::fs_oracle;
 use crate::ivf_pq_verify::gadgets::ivf_pq_verify_gadget;
 use crate::prelude::*;
 
-pub fn compress_i64(set: Vec<i64>, alpha: i64) -> u64 {
-    let alpha_f = F::from_noncanonical_i64(alpha);
+pub fn compress_i64(set: Vec<i64>, alpha: u64) -> u64 {
+    let alpha_f = F::from_canonical_u64(alpha);
     let mut cur_f = F::from_noncanonical_i64(set[0]);
     for i in 1..set.len() {
         cur_f = cur_f * alpha_f + F::from_noncanonical_i64(set[i]);
@@ -15,7 +15,7 @@ pub fn compress_i64(set: Vec<i64>, alpha: i64) -> u64 {
 pub fn convert_ft_set_i64(
     f_set: Vec<Vec<i64>>,
     t_set: Vec<Vec<i64>>,
-    alpha: i64,
+    alpha: u64,
 ) -> (Vec<u64>, Vec<u64>) {
     let mut f: Vec<u64> = f_set
         .into_iter()
@@ -181,7 +181,7 @@ pub fn ivf_pq_verify_proof(
             ]);
         }
     }
-    let (f_, t_) = convert_ft_set_i64(dis_set, lut_set, fs_hash[2] as i64);
+    let (f_, t_) = convert_ft_set_i64(dis_set, lut_set, fs_hash[2]);
     let f_t_sz = f_.len();
 
     // 初始化电路
