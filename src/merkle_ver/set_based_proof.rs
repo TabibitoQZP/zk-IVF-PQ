@@ -88,7 +88,7 @@ pub fn set_based_ivf_pq_proof(
             let mut row: Vec<i64> = Vec::with_capacity(M);
             for k in 0..M {
                 let k_idx = vpqss[i][j][k];
-                let curr_dis = luts[i][j][k_idx as usize];
+                let curr_dis = luts[i][k][k_idx as usize];
                 row.push(curr_dis);
                 vpqss_set.push(vec![i as i64, j as i64, k_idx, curr_dis]);
             }

@@ -1,7 +1,7 @@
 import numpy as np
 from zk_IVF_PQ.zk_IVF_PQ import single_hash
 
-MAX_VAL = 127
+MAX_VAL = 65535
 MAX_DIS = 2**62 - 1
 
 
@@ -36,8 +36,7 @@ def data_gen(D, n_list, M, K, d, n_probe, n):
     ivf_center = rng.integers(
         0, MAX_VAL, size=(n_list, D), dtype=np.int64, endpoint=True
     )
-    # codebooks = rng.integers(0, MAX_VAL, size=(M, K, d), dtype=np.int64, endpoint=True)
-    codebooks = np.zeros((M, K, d), dtype=np.int64)
+    codebooks = rng.integers(0, MAX_VAL, size=(M, K, d), dtype=np.int64, endpoint=True)
 
     c = np.sum((ivf_center - query) ** 2, axis=1).astype(np.int64)
     order = np.argsort(c, kind="stable")
