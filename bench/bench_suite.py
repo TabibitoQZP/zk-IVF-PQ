@@ -75,6 +75,15 @@ DEFAULT_CONFIGS: List[BenchConfig] = [
         n_list=512,
         n_probe=32,
     ),
+    BenchConfig(
+        name="very_large",
+        N=1048576,
+        D=128,
+        M=8,
+        K=16,
+        n_list=1024,
+        n_probe=64,
+    ),
 ]
 
 
@@ -157,7 +166,7 @@ def _save_cached(
 
 
 def _compute_summary(
-    runs: List[Dict[MetricName, float]]
+    runs: List[Dict[MetricName, float]],
 ) -> Dict[MetricName, Dict[str, float]]:
     if not runs:
         raise ValueError("No runs provided for summary")
@@ -315,11 +324,10 @@ def main() -> None:
     axes[0].legend()
     fig.tight_layout()
 
-    output_path = RESULT_DIR / "bench_summary.png"
+    output_path = RESULT_DIR / "bench_summary.pdf"
     fig.savefig(output_path, dpi=150)
     print(f"Saved benchmark summary plot to {output_path}")
 
 
 if __name__ == "__main__":
     main()
-

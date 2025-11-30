@@ -1,5 +1,6 @@
 pub mod brute_force;
 pub mod circuit_ivf_pq;
+pub mod commit_eval;
 pub mod hash_gadgets;
 pub mod ivf_flat;
 pub mod ivf_pq;
@@ -14,6 +15,8 @@ pub mod utils;
 
 use crate::brute_force::proof::{brute_force_proof, sort_brute_force_proof};
 use crate::circuit_ivf_pq::proof::circuit_ivf_pq_proof;
+use crate::commit_eval::fri::run;
+use crate::commit_eval::merkle::merkle_run;
 use crate::hash_gadgets::hash_u64;
 use crate::ivf_flat::proof::ivf_flat_proof;
 use crate::ivf_pq::proof::ivf_pq_proof;
@@ -28,6 +31,18 @@ use crate::pq_flat_verify::proof::pq_flat_verify_proof;
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::prelude::*;
 use std::error::Error;
+
+#[pyfunction]
+pub fn py_merkle(n_list: usize, n: usize, M: usize, loop_time: usize) -> PyResult<(f64, u64)> {
+    let (duration, memory_peak) = merkle_run(n_list, n, M, loop_time);
+    Ok((duration, memory_peak))
+}
+
+#[pyfunction]
+pub fn py_fri(max_exponent: usize, poseidon: bool) -> PyResult<(f64, u64)> {
+    let (duration, memory_peak) = run(max_exponent, poseidon);
+    Ok((duration, memory_peak))
+}
 
 #[pyfunction]
 pub fn py_standalone_commitment(
@@ -315,6 +330,10 @@ fn zk_IVF_PQ(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // 暴露的哈希函数, 用于计算root
     m.add_function(wrap_pyfunction!(single_hash, m)?)?;
     m.add_function(wrap_pyfunction!(batch_hash, m)?)?;
+
+    // commitment对比
+    m.add_function(wrap_pyfunction!(py_fri, m)?)?;
+    m.add_function(wrap_pyfunction!(py_merkle, m)?)?;
 
     // 带merkle的
     m.add_function(wrap_pyfunction!(py_standalone_commitment, m)?)?;

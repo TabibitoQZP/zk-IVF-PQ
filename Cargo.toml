@@ -18,3 +18,7 @@ psutil = "3.2.2"
 # jemallocator = "0.5.0"
 pyo3 = "0.25.0"
 rand = "0.8"
+
+# fri evaluation
+log = "0.4.17"
+rayon = "1.6.1"

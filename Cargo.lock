@@ -1056,8 +1056,10 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "halo2_proofs",
+ "log",
  "plonky2",
  "psutil",
  "pyo3",
  "rand",
+ "rayon",
 ]
