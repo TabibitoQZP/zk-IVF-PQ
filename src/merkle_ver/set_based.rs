@@ -42,13 +42,6 @@ pub fn set_based_ivf_pq_gadget(
         max(max(n_probe as u64, n as u64), max(M as u64, K as u64)),
     );
 
-    // 计算距离
-    let ivf_dis: Vec<Target> = ivf_center
-        .clone()
-        .into_iter()
-        .map(|item| distance(builder, item, query.clone()))
-        .collect();
-
     // ivf过程的证明
     static_nn_gadget(
         builder,

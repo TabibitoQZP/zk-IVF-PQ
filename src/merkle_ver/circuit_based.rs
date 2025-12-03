@@ -98,15 +98,16 @@ pub fn circuit_based_ivf_pq_gadget(
                 rev_gadget(builder, center_dis[j - 1], center_dis[j], comp_result);
             // 所有和距离相关的都要换
             (idxes[j - 1], idxes[j]) = rev_gadget(builder, idxes[j - 1], idxes[j], comp_result);
-            // 换一下ivf_centers
-            for k in 0..D_ {
-                (ivf_center[j - 1][k], ivf_center[j][k]) = rev_gadget(
-                    builder,
-                    ivf_center[j - 1][k].clone(),
-                    ivf_center[j][k].clone(),
-                    comp_result,
-                );
-            }
+            // NOTE: 不用换ivf_centers, 因为cluster_center可以通过哈希承诺验证,
+            // 不需要从ivf_centers中取
+            // for k in 0..D_ {
+            //     (ivf_center[j - 1][k], ivf_center[j][k]) = rev_gadget(
+            //         builder,
+            //         ivf_center[j - 1][k].clone(),
+            //         ivf_center[j][k].clone(),
+            //         comp_result,
+            //     );
+            // }
         }
         // i次冒泡完成, i号索引就完成了排序, 验证是否一致
         builder.connect(idxes[i].clone(), cluster_idxes[i].clone());

@@ -1,3 +1,4 @@
+use crate::hash_gadgets::merkle_tree_gadget;
 use crate::prelude::*;
 use crate::utils::dis_gadgets::distance;
 use crate::utils::nn_gadgets::{comp_gadget, static_nn_gadget};
@@ -29,6 +30,7 @@ pub fn brute_force_gadget(
     query: Vec<Target>,                 // (D,)
     sorted_idx_dis: Vec<Vec<Target>>,   // (N,2)
 ) {
+    let root = merkle_tree_gadget(builder, src_vecs.clone());
     static_nn_gadget(
         builder,
         fs_hash[0],
@@ -45,6 +47,7 @@ pub fn sort_brute_force_gadget(
     query: Vec<Target>,
     top_k: u64,
 ) {
+    let root = merkle_tree_gadget(builder, src_vecs.clone());
     let N_ = src_vecs.len();
     // 打印
     let mut idxes: Vec<Target> = (0..src_vecs.len())
