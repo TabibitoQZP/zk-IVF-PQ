@@ -1,7 +1,7 @@
 import numpy as np
 from zk_IVF_PQ.zk_IVF_PQ import single_hash
 
-MAX_VAL = 65535
+MAX_VAL = 2**16 - 1
 MAX_DIS = 2**62 - 1
 
 

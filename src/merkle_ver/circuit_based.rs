@@ -126,7 +126,7 @@ pub fn circuit_based_ivf_pq_gadget(
     let mut flat_items: Vec<Target> = Vec::with_capacity(all_count);
 
     let one = builder.one();
-    let max_gadget = builder.constant(F::from_canonical_u64(9223372036854775807)); // 2^63-1
+    let max_gadget = builder.constant(F::from_canonical_u64(4611686018427387903)); // 2^62-1
     for i in 0..n_probe {
         for j in 0..n {
             let mut total_dis = builder.zero();
