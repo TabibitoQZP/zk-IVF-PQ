@@ -1,6 +1,7 @@
 """
 用于测试不同规模下circuit-only和set-based方案的性能差距
 """
+
 import argparse
 import json
 import math
@@ -40,6 +41,8 @@ class BenchConfig:
     K: int
     n_list: int
     n_probe: int
+    top_k: int = 64
+    merkled: bool = True
 
     @property
     def n(self) -> int:
@@ -52,40 +55,37 @@ class BenchConfig:
 
 DEFAULT_CONFIGS: List[BenchConfig] = [
     BenchConfig(
-        name="small",
-        N=1024,
-        D=128,
-        M=8,
-        K=16,
-        n_list=128,
-        n_probe=8,
-    ),
-    BenchConfig(
-        name="medium",
-        N=4096,
+        name="basic",  # 基础测试, 后面都是以这个为基础
+        N=8192,
         D=128,
         M=8,
         K=16,
         n_list=256,
         n_probe=16,
+        top_k=64,
+        merkled=True,
     ),
     BenchConfig(
-        name="large",
-        N=16384,
+        name="low-acc",  # 超低精度测试, 主要是测试circuit是否有机会
+        N=8192,
         D=128,
         M=8,
-        K=16,
+        K=1,
+        n_list=16,
+        n_probe=1,
+        top_k=1,
+        merkled=True,
+    ),
+    BenchConfig(
+        name="large",  # 大规模, 高精度测试
+        N=65536,
+        D=1024,
+        M=32,
+        K=256,
         n_list=512,
-        n_probe=32,
-    ),
-    BenchConfig(
-        name="very_large",
-        N=1048576,
-        D=128,
-        M=8,
-        K=16,
-        n_list=1024,
         n_probe=64,
+        top_k=128,
+        merkled=True,
     ),
 ]
 
@@ -97,6 +97,7 @@ def _result_file_name(
         f"{system}"
         f"_N{config.N}_D{config.D}_M{config.M}_K{config.K}"
         f"_nlist{config.n_list}_nprobe{config.n_probe}"
+        f"_topk{config.top_k}_merkled{int(config.merkled)}"
         f"_{config.name}.json"
     )
     return RESULT_DIR / name
@@ -119,6 +120,8 @@ def _run_once(
             config.d,
             config.n_probe,
             config.n,
+            config.top_k,
+            config.merkled,
         )
     else:
         build_time, prove_time, verify_time, proof_size, memory_used = circuit_bench(
@@ -129,6 +132,8 @@ def _run_once(
             config.d,
             config.n_probe,
             config.n,
+            config.top_k,
+            config.merkled,
         )
 
     result: Dict[MetricName, float] = {
