@@ -9,6 +9,7 @@ def ivf_pq_learn(
     n_iter: int = 25,
     M: int = 8,
     K: int = 256,
+    random_state: int | None = 1234,
 ):
     """
     使用浮点数实现的标准 IVF-PQ 训练流程（无零知识相关约束）。
@@ -37,7 +38,12 @@ def ivf_pq_learn(
         raise ValueError("M must divide D exactly")
 
     # 1. coarse 聚类（IVF）
-    center, id_groups, labels = faiss_kmeans_with_ids(vecs, n_list, n_iter)
+    center, id_groups, labels = faiss_kmeans_with_ids(
+        vecs,
+        n_list,
+        niter=n_iter,
+        random_state=random_state,
+    )
     center = center.astype(np.float32, copy=False)
     labels = labels.astype(np.int64, copy=False)
 
@@ -52,7 +58,12 @@ def ivf_pq_learn(
     quant_vecs = []
     for offset in range(0, D, d):
         res_slice = res_vecs[:, offset : offset + d]
-        slice_center, _, slice_labels = faiss_kmeans_with_ids(res_slice, K, n_iter)
+        slice_center, _, slice_labels = faiss_kmeans_with_ids(
+            res_slice,
+            K,
+            niter=n_iter,
+            random_state=random_state,
+        )
         code_books.append(slice_center.astype(np.float32, copy=False))
         quant_vecs.append(slice_labels.astype(np.int64, copy=False))
 

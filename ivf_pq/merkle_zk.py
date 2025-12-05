@@ -117,7 +117,7 @@ def zk_ivf_pq_query(
             cluster_idx_dis,
             [],  # ordered_vpqss_item_dis 由 Rust 内部重新计算
         )
-    print("Merkle ZK proof metrics:", result)
+        print("Merkle ZK proof metrics:", result)
 
     return top_k_items, result
 

@@ -1,5 +1,6 @@
 import numpy as np
 from ivf_pq.util.kmeans import kmeans_with_ids
+from tqdm import tqdm
 
 from zk_IVF_PQ.zk_IVF_PQ import py_ivf_pq_verify_proof
 
@@ -10,13 +11,16 @@ def ivf_pq_learn(
     n_iter=64,
     M=8,
     K=256,
+    random_state: int | None = 0,
 ):
     N, D = vecs.shape
 
     d = D // M
     assert d * M == D, "M 应当被D整除"
 
-    center, id_groups, labels = kmeans_with_ids(vecs, n_list, n_iter)
+    center, id_groups, labels = kmeans_with_ids(
+        vecs, n_list, niter=n_iter, random_state=random_state
+    )
 
     centers = center[labels]
 
@@ -24,10 +28,10 @@ def ivf_pq_learn(
 
     code_books = []
     quant_vecs = []
-    for i in range(0, D, d):
+    for i in tqdm(range(0, D, d)):
         res_slide = res_vecs[:, i : i + d]
         slide_center, slide_id_groups, slide_labels = kmeans_with_ids(
-            res_slide, K, n_iter
+            res_slide, K, niter=n_iter, random_state=random_state
         )
         code_books.append(slide_center)
         quant_vecs.append(slide_labels)

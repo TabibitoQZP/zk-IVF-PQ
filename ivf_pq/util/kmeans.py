@@ -1,11 +1,14 @@
 import numpy as np
 from sklearn.cluster import KMeans  # 或 MiniBatchKMeans
 import faiss
-from typing import Dict, Tuple
+from typing import Dict, Tuple, Optional
 
 
 def kmeans_with_ids(
-    X: np.ndarray, k: int, niter: int = 10
+    X: np.ndarray,
+    k: int,
+    niter: int = 10,
+    random_state: Optional[int] = 0,
 ) -> Tuple[np.ndarray, Dict[int, np.ndarray], np.ndarray]:
     """
     X: shape (N, D) 的 ndarray
@@ -19,7 +22,7 @@ def kmeans_with_ids(
     N = X.shape[0]
     ids = np.arange(N, dtype=np.int64)
 
-    km = KMeans(n_clusters=k, random_state=0, max_iter=niter)
+    km = KMeans(n_clusters=k, random_state=random_state, max_iter=niter)
     labels = km.fit_predict(X).astype(np.int64)  # (N,)
     centers = km.cluster_centers_  # (k, D)
     centers = np.rint(centers).astype(np.int64)  # 转64
@@ -27,10 +30,11 @@ def kmeans_with_ids(
     # 将每个簇对应的样本 id 收集起来
     id_groups = {c: ids[labels == c] for c in range(k)}
     return centers, id_groups, labels
-
-
 def faiss_kmeans_with_ids(
-    X: np.ndarray, k: int, niter: int = 25
+    X: np.ndarray,
+    k: int,
+    niter: int = 25,
+    random_state: Optional[int] = 1234,
 ) -> Tuple[np.ndarray, Dict[int, np.ndarray], np.ndarray]:
     """
     使用 FAISS 做 KMeans 并返回簇中心与每簇的样本 id。
@@ -44,6 +48,9 @@ def faiss_kmeans_with_ids(
 
     # 训练 KMeans
     kmeans = faiss.Kmeans(d=D, k=k, niter=niter, verbose=False)
+    if random_state is not None:
+        # faiss Kmeans 使用 seed 控制初始化随机性
+        kmeans.seed = int(random_state)
     kmeans.train(X32)  # 得到 centroids
     centers = kmeans.centroids  # (k, D), float32
 

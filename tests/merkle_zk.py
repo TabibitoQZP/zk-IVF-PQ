@@ -1,36 +1,26 @@
 import numpy as np
 
+from ivf_pq import rescale_database, rescale_query, brute_force_knn
 from ivf_pq.merkle_zk import ivf_pq_learn, zk_ivf_pq_query
 from vec_data_load.sift import SIFT
 
 
-def brute_force_knn(
-    base_vecs: np.ndarray, query_vec: np.ndarray, top_k: int
-) -> np.ndarray:
-    """
-    使用暴力枚举的方式，以 L2 距离计算 KNN 结果，作为 ground truth。
-    """
-    base_vecs = np.asarray(base_vecs)
-    query_vec = np.asarray(query_vec, dtype=base_vecs.dtype)
-
-    diff = base_vecs - query_vec
-    dist2 = np.sum(diff * diff, axis=1)
-    topk_idx = np.argsort(dist2)[:top_k]
-    return topk_idx.astype(np.int64)
-
-
 if __name__ == "__main__":
-    n_list = 16
-    n_probe = 4
+    n_list = 1024
+    n_probe = 32
     top_k = 64
-    data_root = "data/siftsmall/"
-    # data_root = "data/sift/"
+    # data_root = "data/siftsmall/"
+    data_root = "data/sift/"
     sift = SIFT(data_root)
 
     base_vecs = sift.base_vecs  # (N, D)
     query_vecs = sift.query_vecs  # (100, D)
     gt_vecs = sift.gt_vecs  # (100, 100)
 
+    print(base_vecs.shape)
+
+    base_vecs, min_val, max_val = rescale_database(base_vecs, 65536)
+    query_vecs = rescale_query(query_vecs, 65536, min_val, max_val)
     print("IVF-PQ (Merkle ZK) learning start.")
     labels, center, code_books, quant_vecs, id_groups = ivf_pq_learn(
         base_vecs,
@@ -54,6 +44,7 @@ if __name__ == "__main__":
             quant_vecs,
             id_groups,
             top_k=top_k,
+            n_probe=n_probe,
         )
 
         # 以暴力 KNN 结果作为 ground truth，计算 pass@k
