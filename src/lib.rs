@@ -96,6 +96,39 @@ pub fn py_set_based_with_merkle(
         top_k,                  // 明确取哪top_k
         cluster_idx_dis,        // (n_list,2)
         ordered_vpqss_item_dis, // vpqss中计算的距离和item集合 (n_probe*n,2)
+        true,
+    )
+    .map_err(|e| PyRuntimeError::new_err(format!("circuit_ivf_pq_proof failed: {e}")))?;
+
+    Ok((build_time, prove_time, verify_time, proof_size, memory_used))
+}
+
+#[pyfunction]
+pub fn py_set_based_without_merkle(
+    query: Vec<i64>,               // 查询向量 (D,)
+    ivf_center: Vec<Vec<i64>>,     // ivf簇中心 (n_list,D)
+    vpqss: Vec<Vec<Vec<i64>>>,     // 这里给原始向量, 手动改one-hot (n_probe,n,M)
+    valids: Vec<Vec<i64>>,         // vpqss中向量是否valid (n_probe,n)
+    itemss: Vec<Vec<i64>>,         // vpqss中向量对应的查询量 (n_probe,n)
+    codebooks: Vec<Vec<Vec<i64>>>, // 全局码本 (M,K,d)
+    ivf_roots: Vec<u64>,           // 这里给一下ivf各个root, 用来手算和还原数据 (n_list,)
+    top_k: i64,                    // 明确取哪top_k
+    // 后面的可以在rust内部算, 也可以python端算完传入, 这里用传入实现, 懒得写了...
+    cluster_idx_dis: Vec<Vec<i64>>,        // (n_list,2)
+    ordered_vpqss_item_dis: Vec<Vec<i64>>, // vpqss中计算的距离和item集合 (n_probe*n,2)
+) -> PyResult<(f64, f64, f64, u64, u64)> {
+    let (build_time, prove_time, verify_time, proof_size, memory_used) = set_based_ivf_pq_proof(
+        query,                  // 查询向量 (D,)
+        ivf_center,             // ivf簇中心 (n_list,D)
+        vpqss,                  // 这里给原始向量, 手动改one-hot (n_probe,n,M)
+        valids,                 // vpqss中向量是否valid (n_probe,n)
+        itemss,                 // vpqss中向量对应的查询量 (n_probe,n)
+        codebooks,              // 全局码本 (M,K,d)
+        ivf_roots,              // 这里给一下ivf各个root, 用来手算和还原数据 (n_list,)
+        top_k,                  // 明确取哪top_k
+        cluster_idx_dis,        // (n_list,2)
+        ordered_vpqss_item_dis, // vpqss中计算的距离和item集合 (n_probe*n,2)
+        false,
     )
     .map_err(|e| PyRuntimeError::new_err(format!("circuit_ivf_pq_proof failed: {e}")))?;
 
@@ -125,6 +158,37 @@ pub fn py_circuit_based_with_merkle(
             codebooks,     // 全局码本 (M,K,d)
             ivf_roots,     // 这里给一下ivf各个root, 用来手算和还原数据 (n_list,)
             top_k,         // 明确取哪top_k
+            true,
+        )
+        .map_err(|e| PyRuntimeError::new_err(format!("circuit_ivf_pq_proof failed: {e}")))?;
+
+    Ok((build_time, prove_time, verify_time, proof_size, memory_used))
+}
+
+#[pyfunction]
+pub fn py_circuit_based_without_merkle(
+    query: Vec<i64>,               // 查询向量 (D,)
+    ivf_center: Vec<Vec<i64>>,     // ivf簇中心 (n_list,D)
+    cluster_idxes: Vec<i64>,       // 簇索引 (n_probe,)
+    vpqss: Vec<Vec<Vec<i64>>>,     // 这里给原始向量, 手动改one-hot (n_probe,n,M)
+    valids: Vec<Vec<i64>>,         // vpqss中向量是否valid (n_probe,n)
+    itemss: Vec<Vec<i64>>,         // vpqss中向量对应的查询量 (n_probe,n)
+    codebooks: Vec<Vec<Vec<i64>>>, // 全局码本 (M,K,d)
+    ivf_roots: Vec<u64>,           // 这里给一下ivf各个root, 用来手算和还原数据 (n_list,)
+    top_k: i64,                    // 明确取哪top_k
+) -> PyResult<(f64, f64, f64, u64, u64)> {
+    let (build_time, prove_time, verify_time, proof_size, memory_used) =
+        circuit_based_ivf_pq_proof(
+            query,         // 查询向量 (D,)
+            ivf_center,    // ivf簇中心 (n_list,D)
+            cluster_idxes, // 簇索引 (n_probe,)
+            vpqss,         // 这里给原始向量, 手动改one-hot (n_probe,n,M)
+            valids,        // vpqss中向量是否valid (n_probe,n)
+            itemss,        // vpqss中向量对应的查询量 (n_probe,n)
+            codebooks,     // 全局码本 (M,K,d)
+            ivf_roots,     // 这里给一下ivf各个root, 用来手算和还原数据 (n_list,)
+            top_k,         // 明确取哪top_k
+            false,
         )
         .map_err(|e| PyRuntimeError::new_err(format!("circuit_ivf_pq_proof failed: {e}")))?;
 
@@ -338,7 +402,9 @@ fn zk_IVF_PQ(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // 带merkle的
     m.add_function(wrap_pyfunction!(py_standalone_commitment, m)?)?;
     m.add_function(wrap_pyfunction!(py_circuit_based_with_merkle, m)?)?;
+    m.add_function(wrap_pyfunction!(py_circuit_based_without_merkle, m)?)?;
     m.add_function(wrap_pyfunction!(py_set_based_with_merkle, m)?)?;
+    m.add_function(wrap_pyfunction!(py_set_based_without_merkle, m)?)?;
 
     // 各种向量数据库的证明系统
     m.add_function(wrap_pyfunction!(py_merkle_commit_proof, m)?)?;

@@ -29,6 +29,7 @@ pub fn set_based_ivf_pq_gadget(
     cluster_idx_dis: Vec<Vec<Target>>,        // cluster对应的索引号以及距离 (n_list,2)
     f_: Vec<Target>,
     t_: Vec<Target>,
+    merkled: bool,
 ) {
     let M = codebooks.len();
     let K = codebooks[0].len();
@@ -119,19 +120,21 @@ pub fn set_based_ivf_pq_gadget(
     }
 
     // 承诺
-    standalone_commitment_gadget(
-        builder,
-        query.clone(),
-        root.clone(),
-        codebooks_root.clone(),
-        codebooks.clone(),
-        ivf_center.clone(),
-        ivf_roots.clone(),
-        cluster_idxes,
-        cluster_center.clone(),
-        valids.clone(),
-        itemss.clone(),
-        cluster_pairs.clone(),
-        vpqss.clone(),
-    );
+    if merkled {
+        standalone_commitment_gadget(
+            builder,
+            query.clone(),
+            root.clone(),
+            codebooks_root.clone(),
+            codebooks.clone(),
+            ivf_center.clone(),
+            ivf_roots.clone(),
+            cluster_idxes,
+            cluster_center.clone(),
+            valids.clone(),
+            itemss.clone(),
+            cluster_pairs.clone(),
+            vpqss.clone(),
+        );
+    }
 }

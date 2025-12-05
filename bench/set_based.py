@@ -1,5 +1,5 @@
 import numpy as np
-from zk_IVF_PQ.zk_IVF_PQ import py_set_based_with_merkle
+from zk_IVF_PQ.zk_IVF_PQ import py_set_based_with_merkle, py_set_based_without_merkle
 
 from bench import MAX_DIS, data_gen
 
@@ -22,7 +22,7 @@ pub fn set_based_ivf_pq_proof(
 """
 
 
-def bench(D, n_list, M, K, d, n_probe, n, top_k=64):
+def bench(D, n_list, M, K, d, n_probe, n, top_k=64, merkled=True):
     (
         query,
         ivf_center,
@@ -62,7 +62,21 @@ def bench(D, n_list, M, K, d, n_probe, n, top_k=64):
     ordered_vpqss_item_dis = np.array(ordered_vpqss_item_dis, dtype=np.int64)
     idx = np.argsort(ordered_vpqss_item_dis[:, 1], kind="stable")
     ordered_vpqss_item_dis = ordered_vpqss_item_dis[idx]
-    result = py_set_based_with_merkle(
+    if merkled: 
+        result = py_set_based_with_merkle(
+        query,
+        ivf_center,
+        vpqss,
+        valids,
+        itemss,
+        codebooks,
+        ivf_roots,
+        top_k,
+        cluster_idx_dis,
+        ordered_vpqss_item_dis,
+    )
+    else:
+        result = py_set_based_without_merkle(
         query,
         ivf_center,
         vpqss,

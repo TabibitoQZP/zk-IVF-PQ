@@ -1,5 +1,5 @@
 import numpy as np
-from zk_IVF_PQ.zk_IVF_PQ import py_circuit_based_with_merkle
+from zk_IVF_PQ.zk_IVF_PQ import py_circuit_based_with_merkle, py_circuit_based_without_merkle
 
 from bench import data_gen
 
@@ -21,7 +21,7 @@ pub fn circuit_based_ivf_pq_proof(
 """
 
 
-def bench(D, n_list, M, K, d, n_probe, n, top_k=64):
+def bench(D, n_list, M, K, d, n_probe, n, top_k=64, merkled=True):
     """
     这里的bench本质上要求zk系统自主完成一整套ivf-pq的计算,
     所以不需要实际运算, 给出结果即可
@@ -37,7 +37,20 @@ def bench(D, n_list, M, K, d, n_probe, n, top_k=64):
         ivf_roots,
     ) = data_gen(D, n_list, M, K, d, n_probe, n)
 
-    result = py_circuit_based_with_merkle(
+    if merkled:
+        result = py_circuit_based_with_merkle(
+        query,
+        ivf_center,
+        cluster_idxes,
+        vpqss,
+        valids,
+        itemss,
+        codebooks,
+        ivf_roots,
+        top_k,
+    )
+    else:
+        result = py_circuit_based_without_merkle(
         query,
         ivf_center,
         cluster_idxes,

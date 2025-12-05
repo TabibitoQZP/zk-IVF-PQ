@@ -26,6 +26,7 @@ pub fn circuit_based_ivf_pq_gadget(
     itemss: Vec<Vec<Target>>,                 // 需要取出的内容 (n_probe,n)
     vpqss_onehot: Vec<Vec<Vec<Vec<Target>>>>, // 量化后的向量对应的one-hot (n_probe,n,M,K)
     cluster_pairs: Vec<Vec<Vec<Target>>>,     // merkle树的路径
+    merkled: bool,                            // 是否做承诺
                                               // vpqss: Vec<Vec<Vec<Target>>>,     // 量化后的向量 (n_probe,n,M)
 ) {
     // 基本变量
@@ -64,21 +65,23 @@ pub fn circuit_based_ivf_pq_gadget(
     }
 
     // 承诺部分
-    standalone_commitment_gadget(
-        builder,
-        query.clone(),
-        root.clone(),
-        codebooks_root.clone(),
-        codebooks.clone(),
-        ivf_center.clone(),
-        ivf_roots.clone(),
-        cluster_idxes.clone(),
-        cluster_center.clone(),
-        valids.clone(),
-        itemss.clone(),
-        cluster_pairs.clone(),
-        vpqss.clone(),
-    );
+    if merkled {
+        standalone_commitment_gadget(
+            builder,
+            query.clone(),
+            root.clone(),
+            codebooks_root.clone(),
+            codebooks.clone(),
+            ivf_center.clone(),
+            ivf_roots.clone(),
+            cluster_idxes.clone(),
+            cluster_center.clone(),
+            valids.clone(),
+            itemss.clone(),
+            cluster_pairs.clone(),
+            vpqss.clone(),
+        );
+    }
 
     // 初始化索引和距离
     let mut idxes: Vec<Target> = (0..n_list)

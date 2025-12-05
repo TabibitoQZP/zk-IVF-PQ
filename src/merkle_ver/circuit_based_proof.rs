@@ -51,6 +51,7 @@ pub fn circuit_based_ivf_pq_proof(
     codebooks: Vec<Vec<Vec<i64>>>, // 全局码本 (M,K,d)
     ivf_roots: Vec<u64>,           // 这里给一下ivf各个root, 用来手算和还原数据 (n_list,)
     top_k: i64,                    // 明确取哪top_k
+    merkled: bool,                 // 是否做merkle承诺
 ) -> Result<(f64, f64, f64, u64, u64), Box<dyn std::error::Error>> {
     // 基础变量
     let D_ = query.len();
@@ -125,6 +126,7 @@ pub fn circuit_based_ivf_pq_proof(
         itemss_targets.clone(),
         vpqss_onehot_targets.clone(),
         cluster_pairs_targets.clone(),
+        merkled,
     );
 
     public_targets_1d(&mut builder, query_targets.clone());

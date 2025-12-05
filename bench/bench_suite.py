@@ -1,3 +1,6 @@
+"""
+用于测试不同规模下circuit-only和set-based方案的性能差距
+"""
 import argparse
 import json
 import math

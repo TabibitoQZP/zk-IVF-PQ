@@ -43,10 +43,11 @@ pub fn set_based_ivf_pq_proof(
     itemss: Vec<Vec<i64>>,         // vpqss中向量对应的查询量 (n_probe,n)
     codebooks: Vec<Vec<Vec<i64>>>, // 全局码本 (M,K,d)
     ivf_roots: Vec<u64>,           // 这里给一下ivf各个root, 用来手算和还原数据 (n_list,)
-    top_k: i64,                     // 明确取哪top_k
+    top_k: i64,                    // 明确取哪top_k
     // 后面的可以在rust内部算, 也可以python端算完传入, 这里用传入实现, 懒得写了...
     cluster_idx_dis: Vec<Vec<i64>>,         // (n_list,2)
     _ordered_vpqss_item_dis: Vec<Vec<i64>>, // vpqss中计算的距离和item集合 (n_probe*n,2)
+    merkled: bool,
 ) -> Result<(f64, f64, f64, u64, u64), Box<dyn std::error::Error>> {
     let d = codebooks[0][0].len();
     let D_ = query.len();
@@ -165,6 +166,7 @@ pub fn set_based_ivf_pq_proof(
         cluster_idx_dis_targets.clone(),
         f__targets.clone(),
         t__targets.clone(),
+        merkled,
     );
 
     public_targets_1d(&mut builder, query_targets.clone());
@@ -184,7 +186,11 @@ pub fn set_based_ivf_pq_proof(
     input_targets_3d(&mut pw, cluster_pairs_targets, cluster_pairs)?;
     input_targets_3d_sign(&mut pw, vpqss_targets, vpqss)?;
     input_targets_3d_sign(&mut pw, vpqss_dis_targets, vpqss_dis)?;
-    input_targets_2d_sign(&mut pw, ordered_vpqss_item_dis_targets, ordered_vpqss_item_dis)?;
+    input_targets_2d_sign(
+        &mut pw,
+        ordered_vpqss_item_dis_targets,
+        ordered_vpqss_item_dis,
+    )?;
     input_targets_2d_sign(&mut pw, cluster_idx_dis_targets, cluster_idx_dis)?;
     input_targets_1d(&mut pw, f__targets, f_)?;
     input_targets_1d(&mut pw, t__targets, t_)?;
