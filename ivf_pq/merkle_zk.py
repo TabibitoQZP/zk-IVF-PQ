@@ -24,6 +24,7 @@ def zk_ivf_pq_query(
     id_groups,
     top_k: int = 10,
     n_probe: int = 8,
+    proof=False,
 ):
     """
     IVF-PQ 查询，并使用带 Merkle 承诺的 set-based 证明系统进行验证。
@@ -102,21 +103,23 @@ def zk_ivf_pq_query(
     ivf_roots = np.arange(n_list, dtype=np.uint64)
 
     # 5. 调用带 Merkle 承诺的证明系统
-    result = py_set_based_with_merkle(
-        query,
-        center,
-        vpqss,
-        valids,
-        itemss,
-        code_books,
-        ivf_roots,
-        int(top_k),
-        cluster_idx_dis,
-        [],  # ordered_vpqss_item_dis 由 Rust 内部重新计算
-    )
+    result = None
+    if proof:
+        result = py_set_based_with_merkle(
+            query,
+            center,
+            vpqss,
+            valids,
+            itemss,
+            code_books,
+            ivf_roots,
+            int(top_k),
+            cluster_idx_dis,
+            [],  # ordered_vpqss_item_dis 由 Rust 内部重新计算
+        )
     print("Merkle ZK proof metrics:", result)
 
-    return top_k_items
+    return top_k_items, result
 
 
 if __name__ == "__main__":
@@ -125,6 +128,5 @@ if __name__ == "__main__":
     query = np.random.randint(0, 16383, size=128, dtype=np.int64)
     labels, center, code_books, quant_vecs, id_groups = ivf_pq_learn(vecs)
 
-    indices = zk_ivf_pq_query(query, center, code_books, quant_vecs, id_groups)
+    indices, _ = zk_ivf_pq_query(query, center, code_books, quant_vecs, id_groups)
     print(indices[:16])
-
