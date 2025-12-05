@@ -1,7 +1,7 @@
 import numpy as np
 
 from ivf_pq.zk import ivf_pq_learn, upperbound
-from zk_IVF_PQ.zk_IVF_PQ import py_set_based_with_merkle
+from zk_IVF_PQ.zk_IVF_PQ import py_set_based_with_merkle, single_hash
 
 
 def _build_cluster_capacity(id_groups, n_probe: int) -> int:
@@ -14,6 +14,36 @@ def _build_cluster_capacity(id_groups, n_probe: int) -> int:
     while capacity < max_size:
         capacity *= 2
     return capacity
+
+
+def _compute_cluster_root(
+    cluster_index: int,
+    vpqs: np.ndarray,  # (capacity, M)
+    valids: np.ndarray,  # (capacity,)
+    items: np.ndarray,  # (capacity,)
+) -> np.uint64:
+    """
+    计算单个 IVF 簇在 (cluster_idx, j, valid, item, vpqs[j]) 语义下的 Merkle 根。
+    逻辑应与 Rust 端 merkle_cluster_i64 / merkle_cluster_gadget 保持一致。
+    """
+    capacity, _ = vpqs.shape
+    hash_list: list[int] = []
+
+    for j in range(capacity):
+        left = np.array(
+            [cluster_index, j, int(valids[j]), int(items[j])],
+            dtype=np.int64,
+        )
+        leaf = np.concatenate([left, vpqs[j].astype(np.int64)])
+        hash_list.append(single_hash(leaf))
+
+    while len(hash_list) > 1:
+        hash_list = [
+            single_hash([hash_list[2 * i], hash_list[2 * i + 1]])
+            for i in range(len(hash_list) // 2)
+        ]
+
+    return np.uint64(hash_list[0])
 
 
 def zk_ivf_pq_query(
@@ -52,11 +82,13 @@ def zk_ivf_pq_query(
     vpqss_list = []
     valids_list = []
     itemss_list = []
+    ivf_roots = np.zeros((n_list,), dtype=np.uint64)
+    visited = np.zeros((n_list,), dtype=bool)
 
+    # 2.1 为将参与检索的 n_probe 个簇构造 vpqss / valids / itemss，并计算对应 Merkle 根
     for cluster_index in cluster_idxes:
         cluster_index_int = int(cluster_index)
         vector_ids = id_groups[cluster_index_int]
-        cluster_size = vector_ids.shape[0]
 
         vpqs = np.zeros((capacity, m), dtype=np.int64)
         valids = np.zeros((capacity,), dtype=np.int64)
@@ -73,6 +105,33 @@ def zk_ivf_pq_query(
         vpqss_list.append(vpqs)
         valids_list.append(valids)
         itemss_list.append(items)
+
+        ivf_roots[cluster_index_int] = _compute_cluster_root(
+            cluster_index_int, vpqs, valids, items
+        )
+        visited[cluster_index_int] = True
+
+    # 2.2 为其余簇计算 Merkle 根，使得 ivf_roots 对整棵 IVF 树形成一致的承诺
+    for cluster_index_int in range(n_list):
+        if visited[cluster_index_int]:
+            continue
+
+        vector_ids = id_groups[cluster_index_int]
+        vpqs = np.zeros((capacity, m), dtype=np.int64)
+        valids = np.zeros((capacity,), dtype=np.int64)
+        items = np.zeros((capacity,), dtype=np.int64)
+
+        for local_pos, vec_id in enumerate(vector_ids):
+            if local_pos >= capacity:
+                break
+            vec_id_int = int(vec_id)
+            items[local_pos] = vec_id_int
+            valids[local_pos] = 1
+            vpqs[local_pos, :] = quant_vecs[vec_id_int]
+
+        ivf_roots[cluster_index_int] = _compute_cluster_root(
+            cluster_index_int, vpqs, valids, items
+        )
 
     vpqss = np.stack(vpqss_list, axis=0)  # (n_probe, capacity, M)
     valids = np.stack(valids_list, axis=0)  # (n_probe, capacity)
@@ -99,10 +158,7 @@ def zk_ivf_pq_query(
     all_item_dis = all_item_dis[sort_idx]
     top_k_items = all_item_dis[:top_k, 0]
 
-    # 4. 构造 ivf_roots（这里只给一个简单占位值，电路内部自洽使用）
-    ivf_roots = np.arange(n_list, dtype=np.uint64)
-
-    # 5. 调用带 Merkle 承诺的证明系统
+    # 4. 调用带 Merkle 承诺的证明系统
     result = None
     if proof:
         result = py_set_based_with_merkle(

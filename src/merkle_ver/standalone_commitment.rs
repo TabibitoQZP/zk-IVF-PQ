@@ -50,13 +50,15 @@ pub fn standalone_commitment_gadget(
         );
         ivf_root_targets.push(curr_root);
     }
-    // 验证 cluster_idxes, cluster_center, ivf_root_targets构成的集合满足merkle路径
+    // 验证 cluster_idxes, cluster_center, ivf_root_targets构成的集合满足merkle路径，
+    // 并强制回溯得到的根与全局 root 相同
     for i in 0..n_probe {
         let mut curr_leaf: Vec<Target> = Vec::with_capacity(D_ + 2);
         curr_leaf.push(cluster_idxes[i].clone());
         curr_leaf.extend(cluster_center[i].clone());
         curr_leaf.push(ivf_root_targets[i].clone());
-        merkle_back_gadget(builder, curr_leaf, cluster_pairs[i].clone());
+        let back_root = merkle_back_gadget(builder, curr_leaf, cluster_pairs[i].clone());
+        builder.connect(back_root, root);
     }
 }
 

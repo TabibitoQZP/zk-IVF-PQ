@@ -1,1 +1,1 @@
-maturin develop --release && python -m bench.circuit_based
+maturin develop --release && python -m tests.merkle_zk

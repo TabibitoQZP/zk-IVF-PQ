@@ -6,11 +6,11 @@ from vec_data_load.sift import SIFT
 
 
 if __name__ == "__main__":
-    n_list = 1024
+    n_list = 128
     n_probe = 32
     top_k = 64
-    # data_root = "data/siftsmall/"
-    data_root = "data/sift/"
+    data_root = "data/siftsmall/"
+    # data_root = "data/sift/"
     sift = SIFT(data_root)
 
     base_vecs = sift.base_vecs  # (N, D)

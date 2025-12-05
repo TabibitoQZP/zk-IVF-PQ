@@ -76,17 +76,17 @@ DEFAULT_CONFIGS: List[BenchConfig] = [
         top_k=1,
         merkled=True,
     ),
-    BenchConfig(
-        name="large",  # 大规模, 高精度测试
-        N=65536,
-        D=1024,
-        M=32,
-        K=256,
-        n_list=512,
-        n_probe=64,
-        top_k=128,
-        merkled=True,
-    ),
+    # BenchConfig(
+    #     name="large",  # 大规模, 高精度测试
+    #     N=65536,
+    #     D=1024,
+    #     M=32,
+    #     K=256,
+    #     n_list=512,
+    #     n_probe=64,
+    #     top_k=128,
+    #     merkled=True,
+    # ),
 ]
 
 
