@@ -76,17 +76,17 @@ DEFAULT_CONFIGS: List[BenchConfig] = [
         top_k=1,
         merkled=True,
     ),
-    # BenchConfig(
-    #     name="large",  # 大规模, 高精度测试
-    #     N=65536,
-    #     D=1024,
-    #     M=32,
-    #     K=256,
-    #     n_list=512,
-    #     n_probe=64,
-    #     top_k=128,
-    #     merkled=True,
-    # ),
+    BenchConfig(
+        name="large",  # 大规模, 高精度测试
+        N=65536,
+        D=256,
+        M=16,
+        K=256,
+        n_list=512,
+        n_probe=64,
+        top_k=128,
+        merkled=True,
+    ),
 ]
 
 
@@ -314,7 +314,7 @@ def main() -> None:
             set_means,
             width,
             yerr=set_ci,
-            label="Set-based",
+            label="multi-set based",
             capsize=3,
         )
         ax.bar(
@@ -322,9 +322,13 @@ def main() -> None:
             circuit_means,
             width,
             yerr=circuit_ci,
-            label="Circuit-based",
+            label="circuit-only",
             capsize=3,
         )
+
+        if metric in ("build_time", "prove_time", "memory_used"):
+            ax.set_yscale("log")
+
         ax.set_xticks(x)
         ax.set_xticklabels(config_names, rotation=45, ha="right")
         ax.set_title(metric_labels[metric])
