@@ -2,6 +2,12 @@
 用于测试不同规模下circuit-only和set-based方案的性能差距
 """
 
+import os
+
+SINGLE_THREAD = True
+if SINGLE_THREAD:
+    os.environ["RAYON_NUM_THREADS"] = "1"
+
 import argparse
 import json
 import math
@@ -16,19 +22,40 @@ from bench.set_based import bench as set_bench
 
 
 MetricName = Literal[
-    "build_time", "prove_time", "verify_time", "proof_size", "memory_used"
-]
-
-
-RESULT_DIR = Path("data") / "bench_result"
-RESULT_DIR.mkdir(parents=True, exist_ok=True)
-
-METRIC_NAMES: Tuple[MetricName, ...] = (
     "build_time",
     "prove_time",
     "verify_time",
     "proof_size",
     "memory_used",
+    "num_gates",
+]
+
+
+RESULT_DIR = Path("data") / "bench_result"
+if SINGLE_THREAD:
+    RESULT_DIR = Path("data") / "single_bench_result"
+RESULT_DIR.mkdir(parents=True, exist_ok=True)
+
+BASE_METRIC_NAMES: Tuple[MetricName, ...] = (
+    "build_time",
+    "prove_time",
+    "verify_time",
+    "proof_size",
+    "memory_used",
+)
+
+EXTRA_METRIC_NAMES: Tuple[MetricName, ...] = ("num_gates",)
+
+# 所有需要在 summary 中统计的指标
+METRIC_NAMES: Tuple[MetricName, ...] = BASE_METRIC_NAMES + EXTRA_METRIC_NAMES
+
+# 需要画图展示的指标（去掉 build_time, 新增 num_gates）
+PLOT_METRICS: Tuple[MetricName, ...] = (
+    "prove_time",
+    "verify_time",
+    "proof_size",
+    "memory_used",
+    "num_gates",
 )
 
 
@@ -63,6 +90,17 @@ DEFAULT_CONFIGS: List[BenchConfig] = [
         n_list=256,
         n_probe=16,
         top_k=64,
+        merkled=False,
+    ),
+    BenchConfig(
+        name="basic-merkle",  # 基础测试, 后面都是以这个为基础
+        N=8192,
+        D=128,
+        M=8,
+        K=16,
+        n_list=256,
+        n_probe=16,
+        top_k=64,
         merkled=True,
     ),
     BenchConfig(
@@ -74,19 +112,41 @@ DEFAULT_CONFIGS: List[BenchConfig] = [
         n_list=16,
         n_probe=1,
         top_k=1,
-        merkled=True,
+        merkled=False,
     ),
     BenchConfig(
-        name="large",  # 大规模, 高精度测试
-        N=65536,
-        D=256,
-        M=16,
-        K=256,
-        n_list=512,
-        n_probe=64,
-        top_k=128,
+        name="low-acc-merkle",  # 超低精度测试, 主要是测试circuit是否有机会
+        N=8192,
+        D=128,
+        M=8,
+        K=1,
+        n_list=16,
+        n_probe=1,
+        top_k=1,
         merkled=True,
     ),
+    # BenchConfig(
+    #     name="large",  # 大规模, 高精度测试
+    #     N=65536,
+    #     D=256,
+    #     M=16,
+    #     K=256,
+    #     n_list=512,
+    #     n_probe=64,
+    #     top_k=128,
+    #     merkled=False,
+    # ),
+    # BenchConfig(
+    #     name="large-merkle",  # 大规模, 高精度测试
+    #     N=65536,
+    #     D=256,
+    #     M=16,
+    #     K=256,
+    #     n_list=512,
+    #     n_probe=64,
+    #     top_k=128,
+    #     merkled=True,
+    # ),
 ]
 
 
@@ -112,7 +172,14 @@ def _run_once(
         raise ValueError(f"D must be divisible by M for config {config.name}")
 
     if system == "set_based":
-        build_time, prove_time, verify_time, proof_size, memory_used = set_bench(
+        (
+            build_time,
+            prove_time,
+            verify_time,
+            proof_size,
+            memory_used,
+            num_gates,
+        ) = set_bench(
             config.D,
             config.n_list,
             config.M,
@@ -124,7 +191,14 @@ def _run_once(
             config.merkled,
         )
     else:
-        build_time, prove_time, verify_time, proof_size, memory_used = circuit_bench(
+        (
+            build_time,
+            prove_time,
+            verify_time,
+            proof_size,
+            memory_used,
+            num_gates,
+        ) = circuit_bench(
             config.D,
             config.n_list,
             config.M,
@@ -142,6 +216,7 @@ def _run_once(
         "verify_time": float(verify_time),
         "proof_size": float(proof_size),
         "memory_used": float(memory_used),
+        "num_gates": float(num_gates),
     }
     return result
 
@@ -150,11 +225,17 @@ def _load_cached(path: Path) -> List[Dict[MetricName, float]]:
     with path.open("r", encoding="utf-8") as f:
         payload = json.load(f)
     runs = payload.get("runs", [])
-    return [
-        {metric: float(run[metric]) for metric in METRIC_NAMES}
-        for run in runs
-        if all(metric in run for metric in METRIC_NAMES)
-    ]
+    parsed_runs: List[Dict[MetricName, float]] = []
+    for run in runs:
+        parsed: Dict[MetricName, float] = {}
+        # 旧的 JSON 里可能没有 num_gates, 因此按需读取
+        for metric in METRIC_NAMES:
+            if metric in run:
+                parsed[metric] = float(run[metric])
+        # 至少需要基础五个指标都存在才认为这一条有效
+        if all(m in parsed for m in BASE_METRIC_NAMES):
+            parsed_runs.append(parsed)
+    return parsed_runs
 
 
 def _save_cached(
@@ -166,6 +247,7 @@ def _save_cached(
     payload = {
         "system": system,
         "config": asdict(config),
+        # metrics 字段主要用于标注基础指标；num_gates 直接存放在 runs 里
         "metrics": list(METRIC_NAMES),
         "runs": runs,
     }
@@ -179,22 +261,22 @@ def _compute_summary(
     if not runs:
         raise ValueError("No runs provided for summary")
 
-    values = np.array(
-        [[run[m] for m in METRIC_NAMES] for run in runs],
-        dtype=float,
-    )
-    means = values.mean(axis=0)
-    if len(runs) > 1:
-        std = values.std(axis=0, ddof=1)
-        ci95 = 1.96 * std / math.sqrt(len(runs))
-    else:
-        ci95 = np.zeros_like(means)
-
     summary: Dict[MetricName, Dict[str, float]] = {}
-    for idx, metric in enumerate(METRIC_NAMES):
+    for metric in METRIC_NAMES:
+        values = [run[metric] for run in runs if metric in run]
+        if not values:
+            # 某个指标在当前 config / system 下完全不存在, 直接跳过
+            continue
+        arr = np.array(values, dtype=float)
+        mean = float(arr.mean())
+        if len(values) > 1:
+            std = arr.std(ddof=1)
+            ci95 = float(1.96 * std / math.sqrt(len(values)))
+        else:
+            ci95 = 0.0
         summary[metric] = {
-            "mean": float(means[idx]),
-            "ci95": float(ci95[idx]),
+            "mean": mean,
+            "ci95": ci95,
         }
     return summary
 
@@ -267,7 +349,27 @@ def main() -> None:
             for metric, stats in metrics.items():
                 mean = stats["mean"]
                 ci95 = stats["ci95"]
-                print(f"    {metric:12s}: {mean:.4f} ± {ci95:.4f}")
+
+                # 对存储空间相关的指标换算单位后打印
+                if metric == "proof_size":
+                    scale = 1.0 / 1024.0  # bytes -> kB
+                    mean_disp = mean * scale
+                    ci95_disp = ci95 * scale
+                    unit = "kB"
+                elif metric == "memory_used":
+                    scale = 1.0 / (1024.0**3)  # bytes -> GiB
+                    mean_disp = mean * scale
+                    ci95_disp = ci95 * scale
+                    unit = "GiB"
+                else:
+                    mean_disp = mean
+                    ci95_disp = ci95
+                    unit = ""
+
+                if unit:
+                    print(f"    {metric:12s}: {mean_disp:.4f} ± {ci95_disp:.4f} {unit}")
+                else:
+                    print(f"    {metric:12s}: {mean_disp:.4f} ± {ci95_disp:.4f}")
 
     try:
         import matplotlib.pyplot as plt
@@ -281,18 +383,39 @@ def main() -> None:
         "verify_time": "Verify Time (s)",
         "proof_size": "Proof Size (bytes)",
         "memory_used": "Peak Memory (bytes)",
+        "num_gates": "Number of Gates",
     }
 
     config_names = [cfg.name for cfg in DEFAULT_CONFIGS]
     x = np.arange(len(config_names))
     width = 0.35
 
-    fig, axes = plt.subplots(1, len(METRIC_NAMES), figsize=(4 * len(METRIC_NAMES), 4))
+    # 仅对可用的 PLOT_METRICS 画图；旧 JSON 中可能没有 num_gates
+    available_metrics: List[MetricName] = []
+    for metric in PLOT_METRICS:
+        present = True
+        for cfg in DEFAULT_CONFIGS:
+            if (
+                metric not in summaries[cfg.name]["set_based"]
+                or metric not in summaries[cfg.name]["circuit_based"]
+            ):
+                present = False
+                break
+        if present:
+            available_metrics.append(metric)
 
-    if len(METRIC_NAMES) == 1:
+    if not available_metrics:
+        print("No metrics available for plotting.")
+        return
+
+    fig, axes = plt.subplots(
+        1, len(available_metrics), figsize=(4 * len(available_metrics), 4)
+    )
+
+    if len(available_metrics) == 1:
         axes = [axes]
 
-    for idx, metric in enumerate(METRIC_NAMES):
+    for idx, metric in enumerate(available_metrics):
         ax = axes[idx]
         set_means = [
             summaries[cfg.name]["set_based"][metric]["mean"] for cfg in DEFAULT_CONFIGS
@@ -326,7 +449,8 @@ def main() -> None:
             capsize=3,
         )
 
-        if metric in ("build_time", "prove_time", "memory_used"):
+        # 对 prove_time、memory_used 和 num_gates 使用 log10 轴
+        if metric in ("prove_time", "memory_used", "num_gates"):
             ax.set_yscale("log")
 
         ax.set_xticks(x)

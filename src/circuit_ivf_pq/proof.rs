@@ -9,7 +9,7 @@ pub fn circuit_ivf_pq_proof(
     hot: Vec<Vec<i64>>,             // 针对vecs是否valid
     codebooks: Vec<Vec<Vec<i64>>>,  // 全局码本 (M,K,d)
     top_k: i64,                     // 明确取哪top_k
-) -> Result<(f64, f64, f64, u64, u64), Box<dyn std::error::Error>> {
+) -> Result<(f64, f64, f64, u64, u64, u64), Box<dyn std::error::Error>> {
     let D_ = query.len();
     let n_list = ivf_centers.len();
     let n_probe = vecs.len();
@@ -53,7 +53,15 @@ pub fn circuit_ivf_pq_proof(
     println!("输入witness: {:?}", curr_time.elapsed());
 
     // 整体测试
-    let (build_time, prove_time, verify_time, proof_size, memory_used) = metrics_eval(builder, pw)?;
+    let (build_time, prove_time, verify_time, proof_size, memory_used, num_gates) =
+        metrics_eval(builder, pw)?;
 
-    Ok((build_time, prove_time, verify_time, proof_size, memory_used))
+    Ok((
+        build_time,
+        prove_time,
+        verify_time,
+        proof_size,
+        memory_used,
+        num_gates,
+    ))
 }

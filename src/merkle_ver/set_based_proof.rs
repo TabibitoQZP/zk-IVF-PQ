@@ -48,7 +48,7 @@ pub fn set_based_ivf_pq_proof(
     cluster_idx_dis: Vec<Vec<i64>>,         // (n_list,2)
     _ordered_vpqss_item_dis: Vec<Vec<i64>>, // vpqss中计算的距离和item集合 (n_probe*n,2)
     merkled: bool,
-) -> Result<(f64, f64, f64, u64, u64), Box<dyn std::error::Error>> {
+) -> Result<(f64, f64, f64, u64, u64, u64), Box<dyn std::error::Error>> {
     let d = codebooks[0][0].len();
     let D_ = query.len();
     let n_list = ivf_center.len();
@@ -196,6 +196,14 @@ pub fn set_based_ivf_pq_proof(
     input_targets_1d(&mut pw, t__targets, t_)?;
     println!("输入witness: {:?}", curr_time.elapsed());
 
-    let (build_time, prove_time, verify_time, proof_size, memory_used) = metrics_eval(builder, pw)?;
-    Ok((build_time, prove_time, verify_time, proof_size, memory_used))
+    let (build_time, prove_time, verify_time, proof_size, memory_used, num_gates) =
+        metrics_eval(builder, pw)?;
+    Ok((
+        build_time,
+        prove_time,
+        verify_time,
+        proof_size,
+        memory_used,
+        num_gates,
+    ))
 }

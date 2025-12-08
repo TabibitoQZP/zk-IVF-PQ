@@ -114,7 +114,7 @@ pub fn standalone_commitment_proof(
     itemss: Vec<Vec<i64>>,         // vpqss中向量对应的查询量 (n_probe,n)
     codebooks: Vec<Vec<Vec<i64>>>, // 全局码本 (M,K,d)
     ivf_roots: Vec<u64>,           // 这里给一下ivf各个root, 用来手算和还原数据 (n_list,)
-) -> Result<(f64, f64, f64, u64, u64), Box<dyn std::error::Error>> {
+) -> Result<(f64, f64, f64, u64, u64, u64), Box<dyn std::error::Error>> {
     let D_ = query.len();
     let M = codebooks.len();
     let K = codebooks[0].len();
@@ -204,6 +204,14 @@ pub fn standalone_commitment_proof(
     input_targets_3d(&mut pw, cluster_pairs_targets, cluster_pairs)?;
     println!("输入witness: {:?}", curr_time.elapsed());
 
-    let (build_time, prove_time, verify_time, proof_size, memory_used) = metrics_eval(builder, pw)?;
-    Ok((build_time, prove_time, verify_time, proof_size, memory_used))
+    let (build_time, prove_time, verify_time, proof_size, memory_used, num_gates) =
+        metrics_eval(builder, pw)?;
+    Ok((
+        build_time,
+        prove_time,
+        verify_time,
+        proof_size,
+        memory_used,
+        num_gates,
+    ))
 }

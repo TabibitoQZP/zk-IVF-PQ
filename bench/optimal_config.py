@@ -9,7 +9,7 @@ We fix:
     - number of sub-vectors M,
     - selected_count = n_probe * n (total number of candidate points).
 
-For a given N and selected_count, we consider
+For a given (N, D, M, K, selected_count), we consider
     n_list in {
         N // selected_count,
         (N // selected_count) * 2,
@@ -17,11 +17,11 @@ For a given N and selected_count, we consider
         ...,
         (N // selected_count) * 2**(c - 1),
     }
-and for each candidate set
-    n = N // n_list
-    K = N // n_list
+and for each candidate we set
+    n       = N // n_list
     n_probe = selected_count // n
-so that selected_count = n_probe * n holds for every configuration.
+so that selected_count = n_probe * n holds for every configuration, while K
+is kept fixed across all n_list.
 
 For each configuration we run the set-based benchmark (Merkle-disabled)
 multiple times,
@@ -30,6 +30,13 @@ and generate a line plot that visualizes the trend of the generation time.
 """
 
 from __future__ import annotations
+
+import os
+
+SINGLE_THREAD = False
+if SINGLE_THREAD:
+    os.environ["RAYON_NUM_THREADS"] = "1"
+
 
 import argparse
 import math
@@ -52,22 +59,38 @@ class ConfigResult:
     n: int
     K: int
     n_probe: int
-    runs: List[float]
+    prove_runs: List[float]
+    num_gates_runs: List[float]
 
     @property
-    def mean(self) -> float:
-        if not self.runs:
+    def prove_mean(self) -> float:
+        if not self.prove_runs:
             raise ValueError("No runs recorded for this configuration")
-        arr = np.asarray(self.runs, dtype=float)
+        arr = np.asarray(self.prove_runs, dtype=float)
         return float(arr.mean())
 
     @property
-    def ci95(self) -> float:
-        if len(self.runs) <= 1:
+    def prove_ci95(self) -> float:
+        if len(self.prove_runs) <= 1:
             return 0.0
-        arr = np.asarray(self.runs, dtype=float)
+        arr = np.asarray(self.prove_runs, dtype=float)
         std = float(arr.std(ddof=1))
-        return float(1.96 * std / math.sqrt(len(self.runs)))
+        return float(1.96 * std / math.sqrt(len(self.prove_runs)))
+
+    @property
+    def num_gates_mean(self) -> float:
+        if not self.num_gates_runs:
+            raise ValueError("No num_gates recorded for this configuration")
+        arr = np.asarray(self.num_gates_runs, dtype=float)
+        return float(arr.mean())
+
+    @property
+    def num_gates_ci95(self) -> float:
+        if len(self.num_gates_runs) <= 1:
+            return 0.0
+        arr = np.asarray(self.num_gates_runs, dtype=float)
+        std = float(arr.std(ddof=1))
+        return float(1.96 * std / math.sqrt(len(self.num_gates_runs)))
 
 
 def _generate_n_list_candidates(
@@ -150,13 +173,13 @@ def _run_once(
     M: int,
     selected_count: int,
     n_list: int,
-) -> float:
+    K: int,
+) -> Tuple[float, float]:
     if D % M != 0:
         raise ValueError(f"D={D} must be divisible by M={M}")
 
     d = D // M
     n, n_probe = _compute_n_and_n_probe(N, selected_count, n_list)
-    K = N // n_list
 
     (
         build_time,
@@ -164,17 +187,18 @@ def _run_once(
         verify_time,
         proof_size,
         memory_used,
+        num_gates,
     ) = set_bench(D, n_list, M, K, d, n_probe, n, merkled=False)
 
     # We treat prove_time as the "generation time" of the proof.
-    _ = build_time, verify_time, proof_size, memory_used
-    return float(prove_time)
+    return float(prove_time), float(num_gates)
 
 
 def sweep_configs(
     N: int,
     D: int,
     M: int,
+    K: int,
     selected_count: int,
     num_n_list: int,
     num_runs: int,
@@ -191,8 +215,8 @@ def sweep_configs(
 
     for n_list in n_list_candidates:
         n, n_probe = _compute_n_and_n_probe(N, selected_count, n_list)
-        K = N // n_list
-        runs: List[float] = []
+        prove_runs: List[float] = []
+        num_gates_runs: List[float] = []
 
         print(
             f"Running config: n_list={n_list}, n={n}, K={K}, "
@@ -201,15 +225,17 @@ def sweep_configs(
         )
         for run_idx in range(num_runs):
             print(f"  Run {run_idx + 1}/{num_runs} ...")
-            prove_time = _run_once(N, D, M, selected_count, n_list)
-            runs.append(prove_time)
+            prove_time, num_gates = _run_once(N, D, M, selected_count, n_list, K)
+            prove_runs.append(prove_time)
+            num_gates_runs.append(num_gates)
 
         results[n_list] = ConfigResult(
             n_list=n_list,
             n=n,
             K=K,
             n_probe=n_probe,
-            runs=runs,
+            prove_runs=prove_runs,
+            num_gates_runs=num_gates_runs,
         )
 
     return results
@@ -219,13 +245,14 @@ def _select_optimal_config(results: Dict[int, ConfigResult]) -> ConfigResult:
     if not results:
         raise ValueError("No results to select from")
     # Choose the configuration with the minimal mean prove_time.
-    return min(results.values(), key=lambda r: r.mean)
+    return min(results.values(), key=lambda r: r.prove_mean)
 
 
 def _save_results(
     N: int,
     D: int,
     M: int,
+    K: int,
     selected_count: int,
     num_n_list: int,
     num_runs: int,
@@ -235,6 +262,7 @@ def _save_results(
         "N": N,
         "D": D,
         "M": M,
+        "K": K,
         "selected_count": selected_count,
         "num_n_list": num_n_list,
         "num_runs": num_runs,
@@ -244,16 +272,20 @@ def _save_results(
                 "n": res.n,
                 "K": res.K,
                 "n_probe": res.n_probe,
-                "runs": res.runs,
-                "mean": res.mean,
-                "ci95": res.ci95,
+                "prove_runs": res.prove_runs,
+                "prove_mean": res.prove_mean,
+                "prove_ci95": res.prove_ci95,
+                "num_gates_runs": res.num_gates_runs,
+                "num_gates_mean": res.num_gates_mean,
+                "num_gates_ci95": res.num_gates_ci95,
             }
             for n_list, res in results.items()
         },
     }
 
     output_path = RESULT_DIR / (
-        f"optimal_N{N}_D{D}_M{M}_sel{selected_count}_c{num_n_list}_runs{num_runs}.json"
+        f"optimal_N{N}_D{D}_M{M}_K{K}"
+        f"_sel{selected_count}_c{num_n_list}_runs{num_runs}.json"
     )
     with output_path.open("w", encoding="utf-8") as f:
         import json
@@ -267,6 +299,7 @@ def _plot_results(
     N: int,
     D: int,
     M: int,
+    K: int,
     selected_count: int,
     num_n_list: int,
     results: Dict[int, ConfigResult],
@@ -278,32 +311,52 @@ def _plot_results(
         return
 
     n_lists = sorted(results.keys())
-    means = [results[n_list].mean for n_list in n_lists]
-    ci95 = [results[n_list].ci95 for n_list in n_lists]
+    prove_means = [results[n_list].prove_mean for n_list in n_lists]
+    prove_ci95 = [results[n_list].prove_ci95 for n_list in n_lists]
+    num_gates_means = [results[n_list].num_gates_mean for n_list in n_lists]
+    num_gates_ci95 = [results[n_list].num_gates_ci95 for n_list in n_lists]
 
-    fig, ax = plt.subplots(figsize=(6, 4))
-    ax.errorbar(
+    fig, ax1 = plt.subplots(figsize=(6, 4))
+    ax1.errorbar(
         n_lists,
-        means,
-        yerr=ci95,
+        prove_means,
+        yerr=prove_ci95,
         fmt="-o",
         capsize=3,
         label="Prove time (mean ± 95% CI)",
+        color="C0",
     )
 
-    ax.set_xlabel("n_list (number of IVF clusters)")
-    ax.set_ylabel("Prove time (seconds)")
-    ax.set_title(
-        f"Set-based IVF-PQ (no Merkle) prove time vs n_list\n"
-        f"N={N}, D={D}, M={M}, selected_count={selected_count}, c={num_n_list}"
+    ax2 = ax1.twinx()
+    ax2.errorbar(
+        n_lists,
+        num_gates_means,
+        yerr=num_gates_ci95,
+        fmt="-s",
+        capsize=3,
+        label="Num gates (mean ± 95% CI)",
+        color="C1",
     )
-    ax.set_xscale("log", base=2)
-    ax.grid(True, which="both", linestyle="--", linewidth=0.5, alpha=0.7)
-    ax.legend()
+
+    ax1.set_xlabel("n_list (number of IVF clusters)")
+    ax1.set_ylabel("Prove time (seconds)", color="C0")
+    ax2.set_ylabel("Number of gates", color="C1")
+    ax1.set_title(
+        "Set-based IVF-PQ (no Merkle) prove time & num_gates vs n_list\n"
+        f"N={N}, D={D}, M={M}, K={K}, selected_count={selected_count}, c={num_n_list}"
+    )
+    ax1.set_xscale("log", base=2)
+    ax1.grid(True, which="both", linestyle="--", linewidth=0.5, alpha=0.7)
+
+    # Build a combined legend from both axes.
+    lines, labels = ax1.get_legend_handles_labels()
+    lines2, labels2 = ax2.get_legend_handles_labels()
+    ax1.legend(lines + lines2, labels + labels2, loc="best")
+
     fig.tight_layout()
 
     output_path = RESULT_DIR / (
-        f"optimal_N{N}_D{D}_M{M}_sel{selected_count}_c{num_n_list}.pdf"
+        f"optimal_N{N}_D{D}_M{M}_K{K}_sel{selected_count}_c{num_n_list}.pdf"
     )
     fig.savefig(output_path, dpi=150)
     print(f"Saved optimal-config plot to {output_path}")
@@ -312,13 +365,13 @@ def _plot_results(
 def main() -> None:
     parser = argparse.ArgumentParser(
         description=(
-            "Sweep n_list (and corresponding n, K = N // n_list) for the "
-            "set-based IVF-PQ scheme without Merkle commitments, run multiple "
-            "times, compute mean prove time and 95% CI, and select the "
-            "empirically optimal config."
+            "Sweep n_list (and corresponding n) for the "
+            "set-based IVF-PQ scheme without Merkle commitments, with a fixed "
+            "codebook size K, run multiple times, compute mean prove time and "
+            "95% CI (and num_gates), and select the empirically optimal config."
         )
     )
-    parser.add_argument("--N", type=int, default=1024, help="Total number of vectors.")
+    parser.add_argument("--N", type=int, default=2**16, help="Total number of vectors.")
     parser.add_argument("--D", type=int, default=128, help="Vector dimension.")
     parser.add_argument(
         "--M",
@@ -327,9 +380,15 @@ def main() -> None:
         help="Number of sub-vectors (product quantization parameter).",
     )
     parser.add_argument(
+        "--K",
+        type=int,
+        default=16,
+        help="Codebook size per sub-vector (kept fixed across n_list sweep).",
+    )
+    parser.add_argument(
         "--selected_count",
         type=int,
-        default=512,
+        default=2**13,
         help=(
             "Total number of candidate points selected per query, "
             "i.e., selected_count = n_probe * n."
@@ -338,7 +397,7 @@ def main() -> None:
     parser.add_argument(
         "--c",
         type=int,
-        default=5,
+        default=10,
         help=(
             "Number of different n_list values to test "
             "(powers of two starting from N // selected_count)."
@@ -356,6 +415,7 @@ def main() -> None:
     N = args.N
     D = args.D
     M = args.M
+    K = args.K
     selected_count = args.selected_count
     num_n_list = args.c
     num_runs = args.num_runs
@@ -364,32 +424,61 @@ def main() -> None:
         N=N,
         D=D,
         M=M,
+        K=K,
         selected_count=selected_count,
         num_n_list=num_n_list,
         num_runs=num_runs,
     )
     optimal = _select_optimal_config(results)
 
-    print("\nSummary of configurations (prove_time mean ± 95% CI):")
+    # Compute linear fit num_gates ≈ a * n_list + b and Pearson correlation.
+    n_lists_sorted = sorted(results.keys())
+    x = np.asarray(n_lists_sorted, dtype=float)
+    y = np.asarray(
+        [results[n_list].num_gates_mean for n_list in n_lists_sorted], dtype=float
+    )
+    if x.size >= 2 and y.std() > 0 and x.std() > 0:
+        # Least-squares linear fit y = a * x + b.
+        a, b = np.polyfit(x, y, 1)
+        # Pearson correlation coefficient between n_list and num_gates.
+        x_centered = x - x.mean()
+        y_centered = y - y.mean()
+        pearson_r = float(
+            (x_centered * y_centered).mean() / (x.std() * y.std())
+        )
+    else:
+        a = float("nan")
+        b = float("nan")
+        pearson_r = float("nan")
+
+    print("\nLinear relation between n_list and num_gates:")
+    print(f"  num_gates ≈ a * n_list + b")
+    print(f"  a (slope) = {a:.6f}, b (intercept) = {b:.2f}")
+    print(f"  Pearson r(n_list, num_gates) = {pearson_r:.6f}")
+
+    print("\nSummary of configurations (prove_time / num_gates mean ± 95% CI):")
     for n_list in sorted(results.keys()):
         res = results[n_list]
         print(
             f"  n_list={res.n_list:6d}, n={res.n:6d}, K={res.K:6d}, "
             f"n_probe={res.n_probe:6d} -> "
-            f"{res.mean:.4f} ± {res.ci95:.4f} s"
+            f"prove_time={res.prove_mean:.4f} ± {res.prove_ci95:.4f} s, "
+            f"num_gates={res.num_gates_mean:.2f} ± {res.num_gates_ci95:.2f}"
         )
 
     print("\nEmpirically optimal configuration (by mean prove_time):")
     print(
         f"  n_list={optimal.n_list}, n={optimal.n}, K={optimal.K}, "
         f"n_probe={optimal.n_probe}, "
-        f"mean prove_time={optimal.mean:.4f} s ± {optimal.ci95:.4f} s"
+        f"mean prove_time={optimal.prove_mean:.4f} s ± {optimal.prove_ci95:.4f} s, "
+        f"num_gates={optimal.num_gates_mean:.2f} ± {optimal.num_gates_ci95:.2f}"
     )
 
     json_path = _save_results(
         N=N,
         D=D,
         M=M,
+        K=K,
         selected_count=selected_count,
         num_n_list=num_n_list,
         num_runs=num_runs,
@@ -401,6 +490,7 @@ def main() -> None:
         N=N,
         D=D,
         M=M,
+        K=K,
         selected_count=selected_count,
         num_n_list=num_n_list,
         results=results,

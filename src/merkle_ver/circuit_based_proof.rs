@@ -52,7 +52,7 @@ pub fn circuit_based_ivf_pq_proof(
     ivf_roots: Vec<u64>,           // 这里给一下ivf各个root, 用来手算和还原数据 (n_list,)
     top_k: i64,                    // 明确取哪top_k
     merkled: bool,                 // 是否做merkle承诺
-) -> Result<(f64, f64, f64, u64, u64), Box<dyn std::error::Error>> {
+) -> Result<(f64, f64, f64, u64, u64, u64), Box<dyn std::error::Error>> {
     // 基础变量
     let D_ = query.len();
     let M = codebooks.len();
@@ -147,6 +147,14 @@ pub fn circuit_based_ivf_pq_proof(
     input_targets_3d(&mut pw, cluster_pairs_targets, cluster_pairs)?;
     println!("输入witness: {:?}", curr_time.elapsed());
 
-    let (build_time, prove_time, verify_time, proof_size, memory_used) = metrics_eval(builder, pw)?;
-    Ok((build_time, prove_time, verify_time, proof_size, memory_used))
+    let (build_time, prove_time, verify_time, proof_size, memory_used, num_gates) =
+        metrics_eval(builder, pw)?;
+    Ok((
+        build_time,
+        prove_time,
+        verify_time,
+        proof_size,
+        memory_used,
+        num_gates,
+    ))
 }

@@ -64,7 +64,9 @@ where
 pub fn metrics_eval(
     builder: CircuitBuilder<F, D>,
     pw: PartialWitness<F>,
-) -> Result<(f64, f64, f64, u64, u64), Box<dyn std::error::Error>> {
+) -> Result<(f64, f64, f64, u64, u64, u64), Box<dyn std::error::Error>> {
+    let num_gates = builder.num_gates();
+
     // 1. 构建电路
     let mut curr_time = Instant::now();
     let data = builder.build::<C>();
@@ -92,5 +94,6 @@ pub fn metrics_eval(
         verify_time,
         proof_size as u64,
         memory_used,
+        num_gates as u64,
     ))
 }
