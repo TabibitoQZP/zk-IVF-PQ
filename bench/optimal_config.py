@@ -511,17 +511,18 @@ def main() -> None:
     # Compute linear fit num_gates ≈ a * n_list + b and Pearson correlation.
     n_lists_sorted = sorted(results.keys())
     x = np.asarray(n_lists_sorted, dtype=float)
-    y = np.asarray(
-        [results[n_list].num_gates_mean for n_list in n_lists_sorted], dtype=float
+    num_gates_means = np.asarray(
+        [results[n_list].num_gates_mean for n_list in n_lists_sorted],
+        dtype=float,
     )
-    if x.size >= 2 and y.std() > 0 and x.std() > 0:
-        # Least-squares linear fit y = a * x + b.
-        a, b = np.polyfit(x, y, 1)
+    if x.size >= 2 and num_gates_means.std() > 0 and x.std() > 0:
+        # Least-squares linear fit num_gates ≈ a * n_list + b.
+        a, b = np.polyfit(x, num_gates_means, 1)
         # Pearson correlation coefficient between n_list and num_gates.
         x_centered = x - x.mean()
-        y_centered = y - y.mean()
+        y_centered = num_gates_means - num_gates_means.mean()
         pearson_r = float(
-            (x_centered * y_centered).mean() / (x.std() * y.std())
+            (x_centered * y_centered).mean() / (x.std() * num_gates_means.std())
         )
     else:
         a = float("nan")
@@ -532,6 +533,87 @@ def main() -> None:
     print("  num_gates ≈ a * n_list + b")
     print(f"  a (slope) = {a:.6f}, b (intercept) = {b:.2f}")
     print(f"  Pearson r(n_list, num_gates) = {pearson_r:.6f}")
+
+    # Compute linear fit prove_time ≈ alpha * (num_gates * log2(num_gates)) + beta.
+    prove_means_arr = np.asarray(
+        [results[n_list].prove_mean for n_list in n_lists_sorted],
+        dtype=float,
+    )
+    if (
+        num_gates_means.size >= 2
+        and prove_means_arr.std() > 0
+        and num_gates_means.std() > 0
+        and np.all(num_gates_means > 0)
+    ):
+        x_g = num_gates_means * np.log2(num_gates_means)
+        if x_g.std() > 0:
+            alpha, beta = np.polyfit(x_g, prove_means_arr, 1)
+            xg_centered = x_g - x_g.mean()
+            prove_centered = prove_means_arr - prove_means_arr.mean()
+            pearson_pg = float(
+                (xg_centered * prove_centered).mean()
+                / (x_g.std() * prove_means_arr.std())
+            )
+        else:
+            alpha = float("nan")
+            beta = float("nan")
+            pearson_pg = float("nan")
+    else:
+        alpha = float("nan")
+        beta = float("nan")
+        pearson_pg = float("nan")
+
+    print(
+        "\nLinear relation between prove_time and num_gates * log2(num_gates):"
+    )
+    print("  prove_time ≈ alpha * (num_gates * log2(num_gates)) + beta")
+    print(f"  alpha (slope) = {alpha:.6f}, beta (intercept) = {beta:.4f}")
+    print(
+        "  Pearson r(prove_time, num_gates * log2(num_gates)) "
+        f"= {pearson_pg:.6f}"
+    )
+
+    # Compute linear fit using num_gates_g = 2^{ceil(log2(num_gates))}
+    # and feature num_gates_g * log2(num_gates_g).
+    if np.all(num_gates_means > 0) and num_gates_means.size >= 2:
+        exponents = np.ceil(np.log2(num_gates_means))
+        num_gates_g = np.power(2.0, exponents)
+        x_gb = num_gates_g * np.log2(num_gates_g)
+        if x_gb.std() > 0 and prove_means_arr.std() > 0:
+            alpha_gb, beta_gb = np.polyfit(x_gb, prove_means_arr, 1)
+            xgb_centered = x_gb - x_gb.mean()
+            prove_centered = prove_means_arr - prove_means_arr.mean()
+            pearson_pgb = float(
+                (xgb_centered * prove_centered).mean()
+                / (x_gb.std() * prove_means_arr.std())
+            )
+        else:
+            alpha_gb = float("nan")
+            beta_gb = float("nan")
+            pearson_pgb = float("nan")
+    else:
+        alpha_gb = float("nan")
+        beta_gb = float("nan")
+        pearson_pgb = float("nan")
+
+    print(
+        "\nLinear relation between prove_time and num_gates_g * log2(num_gates_g):"
+    )
+    print(
+        "  where num_gates_g = 2^{ceil(log2(num_gates))} "
+        "(the first power of two ≥ num_gates)"
+    )
+    print(
+        "  prove_time ≈ alpha_g * (num_gates_g * log2(num_gates_g)) + beta_g"
+    )
+    print(
+        f"  alpha_g (slope) = {alpha_gb:.6f}, "
+        f"beta_g (intercept) = {beta_gb:.4f}"
+    )
+    print(
+        "  Pearson r(prove_time, num_gates_g * log2(num_gates_g)) "
+        f"= {pearson_pgb:.6f}"
+    )
 
     print("\nSummary of configurations (prove_time / num_gates mean ± 95% CI):")
     for n_list in sorted(results.keys()):
