@@ -4,7 +4,7 @@
 
 import os
 
-SINGLE_THREAD = True
+SINGLE_THREAD = False
 if SINGLE_THREAD:
     os.environ["RAYON_NUM_THREADS"] = "1"
 

@@ -39,6 +39,7 @@ if SINGLE_THREAD:
 
 
 import argparse
+import json
 import math
 from dataclasses import dataclass
 from pathlib import Path
@@ -51,6 +52,21 @@ from bench.set_based import bench as set_bench
 
 RESULT_DIR = Path("data") / "optimal_config"
 RESULT_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def _result_file_path(
+    N: int,
+    D: int,
+    M: int,
+    K: int,
+    selected_count: int,
+    num_n_list: int,
+    num_runs: int,
+) -> Path:
+    return RESULT_DIR / (
+        f"optimal_N{N}_D{D}_M{M}_K{K}"
+        f"_sel{selected_count}_c{num_n_list}_runs{num_runs}.json"
+    )
 
 
 @dataclass
@@ -248,6 +264,33 @@ def _select_optimal_config(results: Dict[int, ConfigResult]) -> ConfigResult:
     return min(results.values(), key=lambda r: r.prove_mean)
 
 
+def _load_cached_results(path: Path) -> Dict[int, ConfigResult]:
+    with path.open("r", encoding="utf-8") as f:
+        payload = json.load(f)
+
+    raw_results = payload.get("results", {})
+    results: Dict[int, ConfigResult] = {}
+    for key, cfg in raw_results.items():
+        # n_list is both the dict key and a field in cfg; prefer the field if present.
+        n_list = int(cfg.get("n_list", key))
+        n = int(cfg["n"])
+        K = int(cfg["K"])
+        n_probe = int(cfg["n_probe"])
+        prove_runs = [float(v) for v in cfg.get("prove_runs", [])]
+        num_gates_runs = [float(v) for v in cfg.get("num_gates_runs", [])]
+
+        results[n_list] = ConfigResult(
+            n_list=n_list,
+            n=n,
+            K=K,
+            n_probe=n_probe,
+            prove_runs=prove_runs,
+            num_gates_runs=num_gates_runs,
+        )
+
+    return results
+
+
 def _save_results(
     N: int,
     D: int,
@@ -283,13 +326,16 @@ def _save_results(
         },
     }
 
-    output_path = RESULT_DIR / (
-        f"optimal_N{N}_D{D}_M{M}_K{K}"
-        f"_sel{selected_count}_c{num_n_list}_runs{num_runs}.json"
+    output_path = _result_file_path(
+        N=N,
+        D=D,
+        M=M,
+        K=K,
+        selected_count=selected_count,
+        num_n_list=num_n_list,
+        num_runs=num_runs,
     )
     with output_path.open("w", encoding="utf-8") as f:
-        import json
-
         json.dump(payload, f, indent=2)
 
     return output_path
@@ -409,6 +455,11 @@ def main() -> None:
         default=5,
         help="Number of repetitions per configuration.",
     )
+    parser.add_argument(
+        "--force-recompute",
+        action="store_true",
+        help="Ignore cached results and recompute all configurations.",
+    )
 
     args = parser.parse_args()
 
@@ -420,7 +471,7 @@ def main() -> None:
     num_n_list = args.c
     num_runs = args.num_runs
 
-    results = sweep_configs(
+    json_path = _result_file_path(
         N=N,
         D=D,
         M=M,
@@ -429,6 +480,32 @@ def main() -> None:
         num_n_list=num_n_list,
         num_runs=num_runs,
     )
+
+    if json_path.exists() and not args.force_recompute:
+        print(f"Loading cached results from {json_path}")
+        results = _load_cached_results(json_path)
+    else:
+        results = sweep_configs(
+            N=N,
+            D=D,
+            M=M,
+            K=K,
+            selected_count=selected_count,
+            num_n_list=num_n_list,
+            num_runs=num_runs,
+        )
+        json_path = _save_results(
+            N=N,
+            D=D,
+            M=M,
+            K=K,
+            selected_count=selected_count,
+            num_n_list=num_n_list,
+            num_runs=num_runs,
+            results=results,
+        )
+        print(f"Saved raw results to {json_path}")
+
     optimal = _select_optimal_config(results)
 
     # Compute linear fit num_gates ≈ a * n_list + b and Pearson correlation.
@@ -452,7 +529,7 @@ def main() -> None:
         pearson_r = float("nan")
 
     print("\nLinear relation between n_list and num_gates:")
-    print(f"  num_gates ≈ a * n_list + b")
+    print("  num_gates ≈ a * n_list + b")
     print(f"  a (slope) = {a:.6f}, b (intercept) = {b:.2f}")
     print(f"  Pearson r(n_list, num_gates) = {pearson_r:.6f}")
 
@@ -473,18 +550,6 @@ def main() -> None:
         f"mean prove_time={optimal.prove_mean:.4f} s ± {optimal.prove_ci95:.4f} s, "
         f"num_gates={optimal.num_gates_mean:.2f} ± {optimal.num_gates_ci95:.2f}"
     )
-
-    json_path = _save_results(
-        N=N,
-        D=D,
-        M=M,
-        K=K,
-        selected_count=selected_count,
-        num_n_list=num_n_list,
-        num_runs=num_runs,
-        results=results,
-    )
-    print(f"Saved raw results to {json_path}")
 
     _plot_results(
         N=N,
