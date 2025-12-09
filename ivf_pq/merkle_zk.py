@@ -180,9 +180,19 @@ def zk_ivf_pq_query(
 
 if __name__ == "__main__":
     # 简单自测：随机数据跑通一次流程
-    vecs = np.random.randint(0, 16383, size=[10000, 128], dtype=np.int64)
+    n_list = 32
+    N = 10000
+    vecs = np.random.randint(0, 16383, size=[N, 128], dtype=np.int64)
     query = np.random.randint(0, 16383, size=128, dtype=np.int64)
-    labels, center, code_books, quant_vecs, id_groups = ivf_pq_learn(vecs)
+    labels, center, code_books, quant_vecs, id_groups = ivf_pq_learn(
+        vecs, n_list=n_list
+    )
+    max_val = 0
+    for k, v in id_groups.items():
+        max_val = max(max_val, len(v))
+    print(max_val, N / n_list)
 
-    indices, _ = zk_ivf_pq_query(query, center, code_books, quant_vecs, id_groups)
+    indices, _ = zk_ivf_pq_query(
+        query, center, code_books, quant_vecs, id_groups, proof=True
+    )
     print(indices[:16])

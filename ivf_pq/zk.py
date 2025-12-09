@@ -3,6 +3,7 @@ from ivf_pq.util.kmeans import kmeans_with_ids
 from tqdm import tqdm
 
 from zk_IVF_PQ.zk_IVF_PQ import py_ivf_pq_verify_proof
+from ivf_pq.rebalance import rebalance_clusters
 
 
 def ivf_pq_learn(
@@ -12,6 +13,7 @@ def ivf_pq_learn(
     M=8,
     K=256,
     random_state: int | None = 0,
+    cluster_bound: int | None = None,
 ):
     N, D = vecs.shape
 
@@ -21,6 +23,15 @@ def ivf_pq_learn(
     center, id_groups, labels = kmeans_with_ids(
         vecs, n_list, niter=n_iter, random_state=random_state
     )
+
+    changed_count = 0
+    if cluster_bound is not None:
+        labels, id_groups, changed_count = rebalance_clusters(
+            vecs=vecs,
+            centers=center,
+            labels=labels,
+            cluster_bound=cluster_bound,
+        )
 
     centers = center[labels]
 
@@ -40,6 +51,8 @@ def ivf_pq_learn(
     quant_vecs = np.ascontiguousarray(np.array(quant_vecs).T)
 
     # (N,), (n_list,D), (M,K,D/M), (N,M)
+    if cluster_bound is not None:
+        return labels, center, code_books, quant_vecs, id_groups, changed_count
     return labels, center, code_books, quant_vecs, id_groups
 
 
