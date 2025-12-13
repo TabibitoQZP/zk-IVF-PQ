@@ -34,3 +34,4 @@ This repository implements zero-knowledge IVF–PQ primitives as a Rust `cdylib`
 - Reference related issues in commit messages or PR descriptions when applicable.
 - Pull requests should describe the motivation, summarize key changes, and note how you tested (commands and datasets). Include benchmark details for performance-sensitive changes.
 
+BUGFIX: 用的k-means太慢了, 同时标准方案用的也是量化版本的k-means, 这是有问题的.

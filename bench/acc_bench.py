@@ -31,13 +31,17 @@ def _result_file_name(
     n_probe: int,
     top_k: int,
     scale_n: int,
+    cluster_bound: int | None,
 ) -> Path:
     filename = (
         f"acc_{name}"
         f"_N{N}_D{D}_Q{Q}"
         f"_nlist{n_list}_M{M}_K{K}"
-        f"_nprobe{n_probe}_topk{top_k}_scale{scale_n}.json"
+        f"_nprobe{n_probe}_topk{top_k}_scale{scale_n}"
     )
+    if cluster_bound is not None:
+        filename += f"_cb{cluster_bound}"
+    filename += ".json"
     return RESULT_DIR / filename
 
 
@@ -115,6 +119,7 @@ def _run_once(
     K: int,
     n_probe: int,
     scale_n: int,
+    cluster_bound: int | None,
 ) -> Dict[str, float]:
     """
     进行一次训练 + 检索，对标准 IVF-PQ 与 ZK IVF-PQ
@@ -169,15 +174,36 @@ def _run_once(
 
     # 3. ZK 版本：首先 rescale，然后使用 zk 版本的 learn + query
     scaled_base, v_min, v_max = rescale_database(base, scale_n)
-    zk_labels, zk_center, zk_code_books, zk_quant_vecs, zk_id_groups = (
-        zk_ivf_pq_learn(
+    if cluster_bound is not None:
+        (
+            zk_labels,
+            zk_center,
+            zk_code_books,
+            zk_quant_vecs,
+            zk_id_groups,
+            _changed_count,
+        ) = zk_ivf_pq_learn(
+            scaled_base,
+            n_list=n_list,
+            M=M,
+            K=K,
+            random_state=zk_seed,
+            cluster_bound=cluster_bound,
+        )
+    else:
+        (
+            zk_labels,
+            zk_center,
+            zk_code_books,
+            zk_quant_vecs,
+            zk_id_groups,
+        ) = zk_ivf_pq_learn(
             scaled_base,
             n_list=n_list,
             M=M,
             K=K,
             random_state=zk_seed,
         )
-    )
 
     # 计算 ZK 证明中每簇需要 padding 到的容量 n（power-of-two 容量）
     zk_n = _build_cluster_capacity(zk_id_groups, n_probe)
@@ -217,6 +243,7 @@ def run_accuracy_bench(
     K: int = 256,
     n_probe: int = 8,
     scale_n: int = MAX_SCALE,
+    cluster_bound: int | None = None,
     num_runs: int = 5,
     force_recompute: bool = False,
 ) -> Dict[str, Dict[str, float]]:
@@ -230,6 +257,7 @@ def run_accuracy_bench(
         name: 用于缓存文件名的前缀，方便区分实验
         n_list, M, K, n_probe: IVF-PQ 超参数
         scale_n: ZK 版本 rescale 时的整数上界
+        cluster_bound: 若不为 None, 则 ZK 版本训练时对 coarse 簇大小施加上界
         num_runs: 训练 / 评估重复次数，用于估计 95% CI
         force_recompute: 若为 True，则忽略已缓存结果，重新计算所有 run
     返回:
@@ -259,6 +287,7 @@ def run_accuracy_bench(
         n_probe=n_probe,
         top_k=top_k,
         scale_n=scale_n,
+        cluster_bound=cluster_bound,
     )
 
     if force_recompute:
@@ -279,6 +308,7 @@ def run_accuracy_bench(
                     K,
                     n_probe,
                     scale_n,
+                    cluster_bound,
                 )
             )
         config = {
@@ -291,6 +321,7 @@ def run_accuracy_bench(
             "n_probe": n_probe,
             "top_k": top_k,
             "scale_n": scale_n,
+            "cluster_bound": cluster_bound,
         }
         _save_cached(path, name, config, runs)
 

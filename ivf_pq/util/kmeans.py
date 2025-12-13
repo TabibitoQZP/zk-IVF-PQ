@@ -30,6 +30,8 @@ def kmeans_with_ids(
     # 将每个簇对应的样本 id 收集起来
     id_groups = {c: ids[labels == c] for c in range(k)}
     return centers, id_groups, labels
+
+
 def faiss_kmeans_with_ids(
     X: np.ndarray,
     k: int,
@@ -47,11 +49,17 @@ def faiss_kmeans_with_ids(
     X32 = X.astype(np.float32, copy=False)
 
     # 训练 KMeans
-    kmeans = faiss.Kmeans(d=D, k=k, niter=niter, verbose=False)
+    kmeans = faiss.Kmeans(d=D, k=k, niter=niter, verbose=True, gpu=1)
+    # res = faiss.StandardGpuResources()
+    # index = faiss.GpuIndexFlatL2(res, D)
+    # kmeans = faiss.Clustering(D, k)
+    # kmeans.niter = niter
+    # kmeans.verbose = True
     if random_state is not None:
         # faiss Kmeans 使用 seed 控制初始化随机性
         kmeans.seed = int(random_state)
     kmeans.train(X32)  # 得到 centroids
+    faiss.gpu_sync_all_devices()
     centers = kmeans.centroids  # (k, D), float32
 
     # 用中心建一个Index，把每个样本分到最近的中心（1-NN 到中心）

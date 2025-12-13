@@ -1,5 +1,11 @@
 import numpy as np
-from ivf_pq.util.kmeans import kmeans_with_ids
+# import faiss
+# print("max threads:", faiss.omp_get_max_threads())
+# faiss.omp_set_num_threads(64)
+# print("max threads:", faiss.omp_get_max_threads())
+
+# from ivf_pq.util.kmeans import kmeans_with_ids
+from ivf_pq.util.kmeans import faiss_kmeans_with_ids as kmeans_with_ids
 from tqdm import tqdm
 
 from zk_IVF_PQ.zk_IVF_PQ import py_ivf_pq_verify_proof
