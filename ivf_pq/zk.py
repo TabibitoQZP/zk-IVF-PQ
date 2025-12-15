@@ -29,6 +29,7 @@ def ivf_pq_learn(
     center, id_groups, labels = kmeans_with_ids(
         vecs, n_list, niter=n_iter, random_state=random_state
     )
+    center = np.rint(center).astype(np.int64)  # 转64
 
     changed_count = 0
     if cluster_bound is not None:
@@ -40,6 +41,7 @@ def ivf_pq_learn(
         )
 
     centers = center[labels]
+    print("IVF训练完成")
 
     res_vecs = vecs - centers
 

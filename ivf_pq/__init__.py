@@ -13,9 +13,32 @@ def brute_force_knn(
     base_vecs = np.asarray(base_vecs)
     query_vec = np.asarray(query_vec, dtype=base_vecs.dtype)
 
+    if base_vecs.ndim != 2:
+        raise ValueError("base_vecs must be a 2D array of shape (N, D)")
+    if query_vec.ndim != 1:
+        raise ValueError("query_vec must be a 1D array of shape (D,)")
+
+    N, D = base_vecs.shape
+    if query_vec.shape[0] != D:
+        raise ValueError(f"dimension mismatch: base_vecs D={D}, query_vec D={query_vec.shape[0]}")
+
+    if top_k <= 0:
+        raise ValueError("top_k must be positive")
+    if top_k > N:
+        top_k = N
+
     diff = base_vecs - query_vec
     dist2 = np.sum(diff * diff, axis=1)
-    topk_idx = np.argsort(dist2)[:top_k]
+
+    # 使用 argpartition 先选出前 top_k 小的元素，再在这 top_k 内做完整排序，
+    # 将复杂度从 O(N log N) 降为 O(N) + O(top_k log top_k)，在 N 很大且 top_k 很小时明显加速。
+    if top_k == N:
+        topk_idx = np.argsort(dist2)
+    else:
+        partial = np.argpartition(dist2, top_k - 1)[:top_k]
+        order = np.argsort(dist2[partial])
+        topk_idx = partial[order]
+
     return topk_idx.astype(np.int64)
 
 

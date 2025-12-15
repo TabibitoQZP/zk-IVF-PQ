@@ -1,7 +1,9 @@
 import json
 import math
+import time
 from pathlib import Path
 from typing import Dict, List, Tuple
+from tqdm import tqdm
 
 import numpy as np
 
@@ -58,9 +60,20 @@ def _load_cached(path: Path) -> List[Dict[str, float]]:
                 "standard_pass_at_k": float(run["standard_pass_at_k"]),
                 "zk_pass_at_k": float(run["zk_pass_at_k"]),
             }
-            # 可选保存的 zk_n（每簇 padding 长度），若存在则保留
-            if "zk_n" in run:
-                cleaned["zk_n"] = float(run["zk_n"])
+            # 可选保存的附加信息（每簇 padding 长度、各阶段时间），若存在则保留
+            optional_keys = [
+                "zk_n",
+                "bruteforce_time",
+                "standard_train_time",
+                "standard_query_time",
+                "zk_train_time",
+                "zk_query_time",
+                "standard_recall_at_k",
+                "zk_recall_at_k",
+            ]
+            for key in optional_keys:
+                if key in run:
+                    cleaned[key] = float(run[key])
             out.append(cleaned)
     return out
 
@@ -139,7 +152,10 @@ def _run_once(
         raise ValueError("top_k must be in [1, N]")
 
     # 1. 预先计算 brute-force L2 KNN 作为 ground truth
+    t0 = time.time()
     gt_topk = [brute_force_knn(base, queries[i], top_k) for i in range(Q)]
+    bruteforce_time = time.time() - t0
+    print(f"[acc_bench] bruteforce_time={bruteforce_time:.3f}s")
 
     # 为本次 run 生成不同的随机种子，使多次 run 之间有随机性
     rng = np.random.default_rng()
@@ -147,6 +163,7 @@ def _run_once(
     zk_seed = int(rng.integers(0, 2**31 - 1))
 
     # 2. 非 ZK 版本：使用浮点 standard IVF-PQ
+    t0 = time.time()
     std_labels, std_center, std_code_books, std_quant_vecs, std_id_groups = (
         ivf_pq_learn(
             base,
@@ -156,9 +173,13 @@ def _run_once(
             random_state=std_seed,
         )
     )
+    standard_train_time = time.time() - t0
+    print(f"[acc_bench] standard_train_time={standard_train_time:.3f}s")
 
     std_pass_list: List[float] = []
-    for i in range(Q):
+    std_recall_list: List[float] = []
+    t0 = time.time()
+    for i in tqdm(range(Q), "非zk版本"):
         pred = ivf_pq_query(
             queries[i],
             top_k,
@@ -171,8 +192,13 @@ def _run_once(
         )
         inter = np.intersect1d(pred, gt_topk[i])
         std_pass_list.append(float(inter.size) / float(top_k))
+        best_gt = int(gt_topk[i][0])
+        std_recall_list.append(1.0 if best_gt in pred else 0.0)
+    standard_query_time = time.time() - t0
+    print(f"[acc_bench] standard_query_time={standard_query_time:.3f}s")
 
     # 3. ZK 版本：首先 rescale，然后使用 zk 版本的 learn + query
+    t0 = time.time()
     scaled_base, v_min, v_max = rescale_database(base, scale_n)
     if cluster_bound is not None:
         (
@@ -207,9 +233,13 @@ def _run_once(
 
     # 计算 ZK 证明中每簇需要 padding 到的容量 n（power-of-two 容量）
     zk_n = _build_cluster_capacity(zk_id_groups, n_probe)
+    zk_train_time = time.time() - t0
+    print(f"[acc_bench] zk_train_time={zk_train_time:.3f}s")
 
     zk_pass_list: List[float] = []
-    for i in range(Q):
+    zk_recall_list: List[float] = []
+    t0 = time.time()
+    for i in tqdm(range(Q), "zk版本"):
         scaled_query = rescale_query(queries[i], scale_n, v_min, v_max)
         pred_zk, _ = zk_ivf_pq_query(
             scaled_query,
@@ -223,11 +253,22 @@ def _run_once(
         )
         inter = np.intersect1d(pred_zk, gt_topk[i])
         zk_pass_list.append(float(inter.size) / float(top_k))
+        best_gt = int(gt_topk[i][0])
+        zk_recall_list.append(1.0 if best_gt in pred_zk else 0.0)
+    zk_query_time = time.time() - t0
+    print(f"[acc_bench] zk_query_time={zk_query_time:.3f}s")
 
     result = {
         "standard_pass_at_k": float(np.mean(std_pass_list)),
         "zk_pass_at_k": float(np.mean(zk_pass_list)),
+        "standard_recall_at_k": float(np.mean(std_recall_list)),
+        "zk_recall_at_k": float(np.mean(zk_recall_list)),
         "zk_n": float(zk_n),
+        "bruteforce_time": float(bruteforce_time),
+        "standard_train_time": float(standard_train_time),
+        "standard_query_time": float(standard_query_time),
+        "zk_train_time": float(zk_train_time),
+        "zk_query_time": float(zk_query_time),
     }
     return result
 
