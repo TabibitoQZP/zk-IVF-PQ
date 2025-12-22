@@ -54,11 +54,13 @@ def zk_ivf_pq_query(
     id_groups,
     top_k: int = 10,
     n_probe: int = 8,
-    proof=False,
+    proof: bool = False,
 ):
     """
-    IVF-PQ 查询，并使用带 Merkle 承诺的 set-based 证明系统进行验证。
-    返回近似检索到的 top_k 向量索引。
+    IVF-PQ 查询。
+
+    - 当 proof=False 时，仅执行近似检索（不构造 Merkle 结构、不生成证明）。
+    - 当 proof=True 时，构造带 Merkle 承诺的 set-based 证明系统所需的结构，并返回证明指标。
     """
     query = np.asarray(query, dtype=np.int64)
     center = np.asarray(center, dtype=np.int64)
@@ -77,7 +79,45 @@ def zk_ivf_pq_query(
     cluster_idx_dis = np.stack([sorted_idx, sorted_dist2], axis=1).astype(np.int64)
     cluster_idxes = sorted_idx[:n_probe]
 
-    # 2. 构造 vpqss / valids / itemss
+    # Fast path: 只做近似检索，不构造 Merkle 结构
+    if not proof:
+        m_indices = np.arange(m)[None, :]  # (1, M)，用于广播索引子空间
+        all_ids = []
+        all_dis2 = []
+
+        for cluster_index in cluster_idxes:
+            ci_int = int(cluster_index)
+            vector_ids = id_groups.get(ci_int)
+            if vector_ids is None or vector_ids.size == 0:
+                continue
+
+            delta_query = query - center[ci_int]  # (D,)
+            curr_codes = quant_vecs[vector_ids]  # (N_c, M)
+
+            # 通过 code_books 重建子空间残差向量
+            # code_books: (M, K, d)
+            # curr_codes: (N_c, M)
+            curr_code_vecs = code_books[m_indices, curr_codes, :]  # (N_c, M, d)
+            curr_code_vecs = curr_code_vecs.reshape(curr_codes.shape[0], -1)  # (N_c, D)
+
+            curr_diff = delta_query - curr_code_vecs  # (N_c, D)
+            curr_dis2 = np.einsum("ij,ij->i", curr_diff, curr_diff)
+
+            all_ids.append(vector_ids)
+            all_dis2.append(curr_dis2)
+
+        if not all_ids:
+            return np.empty((0,), dtype=np.int64), None
+
+        all_ids_arr = np.concatenate(all_ids)
+        all_dis2_arr = np.concatenate(all_dis2)
+
+        order = np.argsort(all_dis2_arr, kind="stable")
+        top_k = min(top_k, order.size)
+        top_k_items = all_ids_arr[order[:top_k]].astype(np.int64)
+        return top_k_items, None
+
+    # 2. 构造 vpqss / valids / itemss（用于 Merkle 承诺与证明）
     capacity = _build_cluster_capacity(id_groups, n_probe)
     vpqss_list = []
     valids_list = []
@@ -159,21 +199,19 @@ def zk_ivf_pq_query(
     top_k_items = all_item_dis[:top_k, 0]
 
     # 4. 调用带 Merkle 承诺的证明系统
-    result = None
-    if proof:
-        result = py_set_based_with_merkle(
-            query,
-            center,
-            vpqss,
-            valids,
-            itemss,
-            code_books,
-            ivf_roots,
-            int(top_k),
-            cluster_idx_dis,
-            [],  # ordered_vpqss_item_dis 由 Rust 内部重新计算
-        )
-        print("Merkle ZK proof metrics:", result)
+    result = py_set_based_with_merkle(
+        query,
+        center,
+        vpqss,
+        valids,
+        itemss,
+        code_books,
+        ivf_roots,
+        int(top_k),
+        cluster_idx_dis,
+        [],  # ordered_vpqss_item_dis 由 Rust 内部重新计算
+    )
+    print("Merkle ZK proof metrics:", result)
 
     return top_k_items, result
 

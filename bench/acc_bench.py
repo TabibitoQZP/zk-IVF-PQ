@@ -126,6 +126,7 @@ def _compute_summary(
 def _run_once(
     database_vecs: np.ndarray,
     query_vecs: np.ndarray,
+    gt_vecs: np.ndarray | None,
     top_k: int,
     n_list: int,
     M: int,
@@ -151,11 +152,27 @@ def _run_once(
     if top_k <= 0 or top_k > N:
         raise ValueError("top_k must be in [1, N]")
 
-    # 1. 预先计算 brute-force L2 KNN 作为 ground truth
-    t0 = time.time()
-    gt_topk = [brute_force_knn(base, queries[i], top_k) for i in range(Q)]
-    bruteforce_time = time.time() - t0
-    print(f"[acc_bench] bruteforce_time={bruteforce_time:.3f}s")
+    # 1. ground truth: 若提供 gt_vecs 则直接使用，否则回退到 brute-force 计算
+    if gt_vecs is not None:
+        gt_arr = np.asarray(gt_vecs)
+        if gt_arr.ndim != 2:
+            raise ValueError("gt_vecs must be a 2D array of shape (Q, K_gt)")
+        Q_gt, K_gt = gt_arr.shape
+        if Q_gt != Q:
+            raise ValueError(f"gt_vecs Q mismatch: expected {Q}, got {Q_gt}")
+        if top_k > K_gt:
+            raise ValueError(
+                f"top_k={top_k} exceeds available ground-truth size K_gt={K_gt}"
+            )
+        t0 = time.time()
+        gt_topk = [gt_arr[i, :top_k] for i in range(Q)]
+        bruteforce_time = time.time() - t0
+        print(f"[acc_bench] bruteforce_time(precomputed_gt)={bruteforce_time:.3f}s")
+    else:
+        t0 = time.time()
+        gt_topk = [brute_force_knn(base, queries[i], top_k) for i in range(Q)]
+        bruteforce_time = time.time() - t0
+        print(f"[acc_bench] bruteforce_time={bruteforce_time:.3f}s")
 
     # 为本次 run 生成不同的随机种子，使多次 run 之间有随机性
     rng = np.random.default_rng()
@@ -276,6 +293,7 @@ def _run_once(
 def run_accuracy_bench(
     database_vecs: np.ndarray,
     query_vecs: np.ndarray,
+    gt_vecs: np.ndarray,
     top_k: int,
     name: str,
     *,
@@ -294,7 +312,8 @@ def run_accuracy_bench(
     参数:
         database_vecs: (N, D) 向量库
         query_vecs: (Q, D) 查询向量
-        top_k: 评估的 K
+        gt_vecs: (Q, K_gt) 预先计算好的 ground truth 邻居索引（例如 SIFT 的前 100 个真近邻）
+        top_k: 评估的 K（需满足 top_k <= K_gt）
         name: 用于缓存文件名的前缀，方便区分实验
         n_list, M, K, n_probe: IVF-PQ 超参数
         scale_n: ZK 版本 rescale 时的整数上界
@@ -316,6 +335,17 @@ def run_accuracy_bench(
     Q, Dq = queries.shape
     if D != Dq:
         raise ValueError(f"dimension mismatch: database D={D}, query D={Dq}")
+
+    gt_arr = np.asarray(gt_vecs)
+    if gt_arr.ndim != 2:
+        raise ValueError("gt_vecs must be a 2D array of shape (Q, K_gt)")
+    Q_gt, K_gt = gt_arr.shape
+    if Q_gt != Q:
+        raise ValueError(f"gt_vecs Q mismatch: expected {Q}, got {Q_gt}")
+    if top_k > K_gt:
+        raise ValueError(
+            f"top_k={top_k} exceeds available ground-truth size K_gt={K_gt}"
+        )
 
     path = _result_file_name(
         name=name,
@@ -343,6 +373,7 @@ def run_accuracy_bench(
                 _run_once(
                     base,
                     queries,
+                    gt_arr,
                     top_k,
                     n_list,
                     M,

@@ -92,17 +92,17 @@ DEFAULT_CONFIGS: List[BenchConfig] = [
         top_k=64,
         merkled=False,
     ),
-    BenchConfig(
-        name="basic-merkle",  # 基础测试, 后面都是以这个为基础
-        N=8192,
-        D=128,
-        M=8,
-        K=16,
-        n_list=256,
-        n_probe=16,
-        top_k=64,
-        merkled=True,
-    ),
+    # BenchConfig(
+    #     name="basic-merkle",  # 基础测试, 后面都是以这个为基础
+    #     N=8192,
+    #     D=128,
+    #     M=8,
+    #     K=16,
+    #     n_list=256,
+    #     n_probe=16,
+    #     top_k=64,
+    #     merkled=True,
+    # ),
     BenchConfig(
         name="low-acc",  # 超低精度测试, 主要是测试circuit是否有机会
         N=8192,
@@ -114,28 +114,28 @@ DEFAULT_CONFIGS: List[BenchConfig] = [
         top_k=1,
         merkled=False,
     ),
-    BenchConfig(
-        name="low-acc-merkle",  # 超低精度测试, 主要是测试circuit是否有机会
-        N=8192,
-        D=128,
-        M=8,
-        K=1,
-        n_list=16,
-        n_probe=1,
-        top_k=1,
-        merkled=True,
-    ),
     # BenchConfig(
-    #     name="large",  # 大规模, 高精度测试
-    #     N=65536,
-    #     D=256,
-    #     M=16,
-    #     K=256,
-    #     n_list=512,
-    #     n_probe=64,
-    #     top_k=128,
-    #     merkled=False,
+    #     name="low-acc-merkle",  # 超低精度测试, 主要是测试circuit是否有机会
+    #     N=8192,
+    #     D=128,
+    #     M=8,
+    #     K=1,
+    #     n_list=16,
+    #     n_probe=1,
+    #     top_k=1,
+    #     merkled=True,
     # ),
+    BenchConfig(
+        name="large",  # 大规模, 高精度测试
+        N=65536,
+        D=256,
+        M=16,
+        K=256,
+        n_list=512,
+        n_probe=64,
+        top_k=128,
+        merkled=False,
+    ),
     # BenchConfig(
     #     name="large-merkle",  # 大规模, 高精度测试
     #     N=65536,
