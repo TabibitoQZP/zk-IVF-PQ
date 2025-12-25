@@ -23,7 +23,7 @@ use crate::ivf_pq::proof::ivf_pq_proof;
 use crate::ivf_pq_verify::proof::ivf_pq_verify_proof;
 use crate::merkle_commit::proof::{merkle_commit_plain_proof, merkle_commit_proof};
 use crate::merkle_ver::circuit_based_proof::circuit_based_ivf_pq_proof;
-use crate::merkle_ver::set_based_proof::set_based_ivf_pq_proof;
+use crate::merkle_ver::set_based_proof::{set_based_gate, set_based_ivf_pq_proof};
 use crate::merkle_ver::standalone_commitment::standalone_commitment_proof;
 use crate::pq_flat::proof::pq_flat_proof;
 use crate::pq_flat_com::proof::pq_flat_com_proof;
@@ -31,6 +31,21 @@ use crate::pq_flat_verify::proof::pq_flat_verify_proof;
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::prelude::*;
 use std::error::Error;
+
+#[pyfunction]
+pub fn py_set_based_gate(
+    M: usize,
+    K: usize,
+    d: usize,
+    n_list: usize,
+    n_probe: usize,
+    n: usize,
+    top_k: usize,
+    merkled: bool,
+) -> PyResult<usize> {
+    let gates = set_based_gate(M, K, d, n_list, n_probe, n, top_k, merkled);
+    Ok(gates)
+}
 
 #[pyfunction]
 pub fn py_merkle(n_list: usize, n: usize, M: usize, loop_time: usize) -> PyResult<(f64, u64)> {
@@ -94,19 +109,19 @@ pub fn py_set_based_with_merkle(
 ) -> PyResult<(f64, f64, f64, u64, u64, u64)> {
     let (build_time, prove_time, verify_time, proof_size, memory_used, num_gates) =
         set_based_ivf_pq_proof(
-        query,                  // 查询向量 (D,)
-        ivf_center,             // ivf簇中心 (n_list,D)
-        vpqss,                  // 这里给原始向量, 手动改one-hot (n_probe,n,M)
-        valids,                 // vpqss中向量是否valid (n_probe,n)
-        itemss,                 // vpqss中向量对应的查询量 (n_probe,n)
-        codebooks,              // 全局码本 (M,K,d)
-        ivf_roots,              // 这里给一下ivf各个root, 用来手算和还原数据 (n_list,)
-        top_k,                  // 明确取哪top_k
-        cluster_idx_dis,        // (n_list,2)
-        ordered_vpqss_item_dis, // vpqss中计算的距离和item集合 (n_probe*n,2)
-        true,
-    )
-    .map_err(|e| PyRuntimeError::new_err(format!("circuit_ivf_pq_proof failed: {e}")))?;
+            query,                  // 查询向量 (D,)
+            ivf_center,             // ivf簇中心 (n_list,D)
+            vpqss,                  // 这里给原始向量, 手动改one-hot (n_probe,n,M)
+            valids,                 // vpqss中向量是否valid (n_probe,n)
+            itemss,                 // vpqss中向量对应的查询量 (n_probe,n)
+            codebooks,              // 全局码本 (M,K,d)
+            ivf_roots,              // 这里给一下ivf各个root, 用来手算和还原数据 (n_list,)
+            top_k,                  // 明确取哪top_k
+            cluster_idx_dis,        // (n_list,2)
+            ordered_vpqss_item_dis, // vpqss中计算的距离和item集合 (n_probe*n,2)
+            true,
+        )
+        .map_err(|e| PyRuntimeError::new_err(format!("circuit_ivf_pq_proof failed: {e}")))?;
 
     Ok((
         build_time,
@@ -134,19 +149,19 @@ pub fn py_set_based_without_merkle(
 ) -> PyResult<(f64, f64, f64, u64, u64, u64)> {
     let (build_time, prove_time, verify_time, proof_size, memory_used, num_gates) =
         set_based_ivf_pq_proof(
-        query,                  // 查询向量 (D,)
-        ivf_center,             // ivf簇中心 (n_list,D)
-        vpqss,                  // 这里给原始向量, 手动改one-hot (n_probe,n,M)
-        valids,                 // vpqss中向量是否valid (n_probe,n)
-        itemss,                 // vpqss中向量对应的查询量 (n_probe,n)
-        codebooks,              // 全局码本 (M,K,d)
-        ivf_roots,              // 这里给一下ivf各个root, 用来手算和还原数据 (n_list,)
-        top_k,                  // 明确取哪top_k
-        cluster_idx_dis,        // (n_list,2)
-        ordered_vpqss_item_dis, // vpqss中计算的距离和item集合 (n_probe*n,2)
-        false,
-    )
-    .map_err(|e| PyRuntimeError::new_err(format!("circuit_ivf_pq_proof failed: {e}")))?;
+            query,                  // 查询向量 (D,)
+            ivf_center,             // ivf簇中心 (n_list,D)
+            vpqss,                  // 这里给原始向量, 手动改one-hot (n_probe,n,M)
+            valids,                 // vpqss中向量是否valid (n_probe,n)
+            itemss,                 // vpqss中向量对应的查询量 (n_probe,n)
+            codebooks,              // 全局码本 (M,K,d)
+            ivf_roots,              // 这里给一下ivf各个root, 用来手算和还原数据 (n_list,)
+            top_k,                  // 明确取哪top_k
+            cluster_idx_dis,        // (n_list,2)
+            ordered_vpqss_item_dis, // vpqss中计算的距离和item集合 (n_probe*n,2)
+            false,
+        )
+        .map_err(|e| PyRuntimeError::new_err(format!("circuit_ivf_pq_proof failed: {e}")))?;
 
     Ok((
         build_time,
@@ -449,6 +464,7 @@ fn zk_IVF_PQ(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(py_circuit_based_without_merkle, m)?)?;
     m.add_function(wrap_pyfunction!(py_set_based_with_merkle, m)?)?;
     m.add_function(wrap_pyfunction!(py_set_based_without_merkle, m)?)?;
+    m.add_function(wrap_pyfunction!(py_set_based_gate, m)?)?;
 
     // 各种向量数据库的证明系统
     m.add_function(wrap_pyfunction!(py_merkle_commit_proof, m)?)?;

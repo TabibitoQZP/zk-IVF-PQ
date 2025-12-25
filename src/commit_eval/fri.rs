@@ -1,3 +1,4 @@
+use crate::utils::metrics::measure_memory_usage;
 use log::Level;
 use plonky2::hash::hash_types::RichField;
 use plonky2::{
@@ -15,7 +16,6 @@ use std::{
     mem::size_of,
     time::{Duration, Instant},
 };
-use crate::utils::metrics::measure_memory_usage;
 
 // type C = PoseidonGoldilocksConfig;
 // type C = KeccakGoldilocksConfig;

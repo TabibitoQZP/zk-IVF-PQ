@@ -1,4 +1,4 @@
-use crate::hash_gadgets::fs_oracle;
+use crate::hash_gadgets::{fs_oracle, tree_depth};
 use crate::ivf_pq_verify::proof::{convert_ft_set_i64, luts_gen_i64};
 use crate::merkle_ver::set_based::set_based_ivf_pq_gadget;
 use crate::merkle_ver::standalone_commitment::commitment_relevant_gen;
@@ -48,6 +48,7 @@ pub fn set_based_ivf_pq_proof(
     cluster_idx_dis: Vec<Vec<i64>>,         // (n_list,2)
     _ordered_vpqss_item_dis: Vec<Vec<i64>>, // vpqss中计算的距离和item集合 (n_probe*n,2)
     merkled: bool,
+    // gate_only: bool, // 只统计gate
 ) -> Result<(f64, f64, f64, u64, u64, u64), Box<dyn std::error::Error>> {
     let d = codebooks[0][0].len();
     let D_ = query.len();
@@ -196,6 +197,17 @@ pub fn set_based_ivf_pq_proof(
     input_targets_1d(&mut pw, t__targets, t_)?;
     println!("输入witness: {:?}", curr_time.elapsed());
 
+    // if gate_only {
+    //     return Ok((
+    //         0 as f64,
+    //         0 as f64,
+    //         0 as f64,
+    //         0 as u64,
+    //         0 as u64,
+    //         builder.num_gates() as u64,
+    //     ));
+    // }
+
     let (build_time, prove_time, verify_time, proof_size, memory_used, num_gates) =
         metrics_eval(builder, pw)?;
     Ok((
@@ -206,4 +218,67 @@ pub fn set_based_ivf_pq_proof(
         memory_used,
         num_gates,
     ))
+}
+
+pub fn set_based_gate(
+    M: usize,
+    K: usize,
+    d: usize,
+    n_list: usize,
+    n_probe: usize,
+    n: usize,
+    top_k: usize,
+    merkled: bool,
+) -> usize {
+    let D_ = M * d;
+    let depth = tree_depth(n_list);
+    let vpqss_set_sz = n_probe * n * M;
+    let lut_set_sz = n_probe * M * K;
+    let f_t_sz = std::cmp::max(vpqss_set_sz, lut_set_sz);
+
+    let mut builder = make_builder();
+    let fs_hash_targets = builder.add_virtual_targets(7);
+    let query_targets = builder.add_virtual_targets(D_);
+    let root_targets = builder.add_virtual_target();
+    let codebooks_root_targets = builder.add_virtual_target();
+    let codebooks_targets = add_targets_3d(&mut builder, vec![M, K, d]);
+    let ivf_center_targets = add_targets_2d(&mut builder, vec![n_list, D_]);
+    let ivf_roots_targets = builder.add_virtual_targets(n_list);
+    let cluster_center_targets = add_targets_2d(&mut builder, vec![n_probe, D_]);
+    let valids_targets = add_targets_2d(&mut builder, vec![n_probe, n]);
+    let itemss_targets = add_targets_2d(&mut builder, vec![n_probe, n]);
+    let cluster_pairs_targets = add_targets_3d(&mut builder, vec![n_probe, depth, 2]);
+    let vpqss_targets = add_targets_3d(&mut builder, vec![n_probe, n, M]);
+    let vpqss_dis_targets = add_targets_3d(&mut builder, vec![n_probe, n, M]);
+    let ordered_vpqss_item_dis_targets = add_targets_2d(&mut builder, vec![n_probe * n, 2]);
+    let cluster_idx_dis_targets = add_targets_2d(&mut builder, vec![n_list, 2]);
+    let f__targets = builder.add_virtual_targets(f_t_sz);
+    let t__targets = builder.add_virtual_targets(f_t_sz);
+
+    set_based_ivf_pq_gadget(
+        &mut builder,
+        fs_hash_targets.clone(),
+        query_targets.clone(),
+        top_k as usize,
+        root_targets.clone(),
+        codebooks_root_targets.clone(),
+        codebooks_targets.clone(),
+        ivf_center_targets.clone(),
+        ivf_roots_targets.clone(),
+        cluster_center_targets.clone(),
+        valids_targets.clone(),
+        itemss_targets.clone(),
+        cluster_pairs_targets.clone(),
+        vpqss_targets.clone(),
+        vpqss_dis_targets.clone(),
+        ordered_vpqss_item_dis_targets.clone(),
+        cluster_idx_dis_targets.clone(),
+        f__targets.clone(),
+        t__targets.clone(),
+        merkled,
+    );
+
+    public_targets_1d(&mut builder, query_targets.clone());
+
+    builder.num_gates()
 }
