@@ -13,14 +13,19 @@ pub fn set_based_gate(
 """
 
 from zk_IVF_PQ.zk_IVF_PQ import py_set_based_gate
+import time
 
 if __name__ == "__main__":
-    M=8
-    K=16
-    d=16
-    n_list=256
-    n_probe=16
-    n=32
-    top_k=64
-    gate = py_set_based_gate(M,K,d,n_list,n_probe,n,top_k,False)
-    print(gate)
+    stime = time.time()
+    D = 960
+    n_list = 8192
+    n_probe = 64
+    n = 256
+    for B in [8, 16, 32, 64]:
+        for log2_k in [1,2,4,8]:
+            K = 2**log2_k
+            M = B // log2_k
+            d = D // M
+            gate = py_set_based_gate(M, K, d, n_list, n_probe, n, 64, False)
+            print(K,M,gate)
+    print(time.time()-stime)
