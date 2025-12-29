@@ -38,6 +38,16 @@ python -m bench.optimal_mem_config \
   --c 10 \
   --num-runs 5
 
+# sanity check用
+python -m bench.optimal_mem_config \
+  --N 2097152 \
+  --D 128 \
+  --n-list 8192 \
+  --n-probe 64 \
+  --mem-bits 8 \
+  --c 10 \
+  --num-runs 5
+
 # 这个是针对SIFT的配置, 选了16384个, 但粗分簇
 python -m bench.optimal_mem_config \
   --N 2097152 \

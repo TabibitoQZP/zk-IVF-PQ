@@ -49,15 +49,17 @@ def faiss_kmeans_with_ids(
     X32 = X.astype(np.float32, copy=False)
 
     # 训练 KMeans
-    kmeans = faiss.Kmeans(d=D, k=k, niter=niter, verbose=True, gpu=1)
+    # 注意：faiss.extra_wrappers.Kmeans 读取的是 ClusteringParameters.seed，
+    # 需要通过构造参数 seed 传入（而不是 kmeans.seed 这种动态属性赋值）。
+    kmeans_kwargs = dict(d=D, k=k, niter=niter, verbose=True, gpu=1)
+    if random_state is not None:
+        kmeans_kwargs["seed"] = int(random_state)
+    kmeans = faiss.Kmeans(**kmeans_kwargs)
     # res = faiss.StandardGpuResources()
     # index = faiss.GpuIndexFlatL2(res, D)
     # kmeans = faiss.Clustering(D, k)
     # kmeans.niter = niter
     # kmeans.verbose = True
-    if random_state is not None:
-        # faiss Kmeans 使用 seed 控制初始化随机性
-        kmeans.seed = int(random_state)
     kmeans.train(X32)  # 得到 centroids
     faiss.gpu_sync_all_devices()
     centers = kmeans.centroids  # (k, D), float32

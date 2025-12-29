@@ -21,6 +21,31 @@ RESULT_DIR.mkdir(parents=True, exist_ok=True)
 
 METRIC_KEYS: Tuple[str, str] = ("standard_pass_at_k", "zk_pass_at_k")
 
+# 控制 _compute_summary 输出哪些统计项（95% CI）
+# 格式：{group_name: ((metric_name, run_key), ...), ...}
+# - 默认只输出 pass@k（保持向后兼容）
+# - 想额外输出其它 CI95（例如 recall/time），在这里追加即可
+CI95_KEYS: Dict[str, Tuple[Tuple[str, str], ...]] = {
+    # "standard": (("pass_at_k", "standard_pass_at_k"),),
+    # "zk": (("pass_at_k", "zk_pass_at_k"),),
+    # 例子（按需打开/追加）：
+    "standard": (
+        # ("pass_at_k", "standard_pass_at_k"),
+        ("recall_at_k", "standard_recall_at_k"),
+        # ("train_time", "standard_train_time"),
+        # ("query_time", "standard_query_time"),
+    ),
+    "zk": (
+        # ("pass_at_k", "zk_pass_at_k"),
+        ("recall_at_k", "zk_recall_at_k"),
+        # ("train_time", "zk_train_time"),
+        # ("query_time", "zk_query_time"),
+        # ("n", "zk_n"),
+        ("changed_count", "zk_changed_count"),
+    ),
+    # "shared": (("bruteforce_time", "bruteforce_time"),),
+}
+
 
 def _result_file_name(
     name: str,
@@ -63,6 +88,7 @@ def _load_cached(path: Path) -> List[Dict[str, float]]:
             # 可选保存的附加信息（每簇 padding 长度、各阶段时间），若存在则保留
             optional_keys = [
                 "zk_n",
+                "zk_changed_count",
                 "bruteforce_time",
                 "standard_train_time",
                 "standard_query_time",
@@ -100,27 +126,33 @@ def _compute_summary(
     if not runs:
         raise ValueError("No runs provided for summary")
 
-    values = np.array(
-        [[run["standard_pass_at_k"], run["zk_pass_at_k"]] for run in runs],
-        dtype=float,
-    )
-    means = values.mean(axis=0)
-    if len(runs) > 1:
-        std = values.std(axis=0, ddof=1)
-        ci95 = 1.96 * std / math.sqrt(len(runs))
-    else:
-        ci95 = np.zeros_like(means)
+    summary: Dict[str, Dict[str, float]] = {}
 
-    return {
-        "standard": {
-            "mean_pass_at_k": float(means[0]),
-            "ci95": float(ci95[0]),
-        },
-        "zk": {
-            "mean_pass_at_k": float(means[1]),
-            "ci95": float(ci95[1]),
-        },
-    }
+    for group, metrics in CI95_KEYS.items():
+        group_summary: Dict[str, float] = {}
+        for metric_name, run_key in metrics:
+            values = [float(run[run_key]) for run in runs if run_key in run]
+            if not values:
+                continue
+
+            arr = np.asarray(values, dtype=float)
+            mean = float(arr.mean())
+            if arr.size > 1:
+                std = float(arr.std(ddof=1))
+                ci95 = float(1.96 * std / math.sqrt(int(arr.size)))
+            else:
+                ci95 = 0.0
+
+            group_summary[f"mean_{metric_name}"] = mean
+            group_summary[f"ci95_{metric_name}"] = ci95
+
+        # 向后兼容：保留原来的 key 名（只针对 pass@k）
+        if "ci95_pass_at_k" in group_summary:
+            group_summary["ci95"] = group_summary["ci95_pass_at_k"]
+
+        summary[group] = group_summary
+
+    return summary
 
 
 def _run_once(
@@ -217,6 +249,7 @@ def _run_once(
     # 3. ZK 版本：首先 rescale，然后使用 zk 版本的 learn + query
     t0 = time.time()
     scaled_base, v_min, v_max = rescale_database(base, scale_n)
+    zk_changed_count: int | None = None
     if cluster_bound is not None:
         (
             zk_labels,
@@ -224,7 +257,7 @@ def _run_once(
             zk_code_books,
             zk_quant_vecs,
             zk_id_groups,
-            _changed_count,
+            zk_changed_count,
         ) = zk_ivf_pq_learn(
             scaled_base,
             n_list=n_list,
@@ -287,6 +320,8 @@ def _run_once(
         "zk_train_time": float(zk_train_time),
         "zk_query_time": float(zk_query_time),
     }
+    if zk_changed_count is not None:
+        result["zk_changed_count"] = float(zk_changed_count)
     return result
 
 

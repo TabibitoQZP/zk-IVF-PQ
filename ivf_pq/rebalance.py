@@ -45,6 +45,7 @@ def rebalance_clusters(
         sizes = np.bincount(new_labels, minlength=n_list)
 
         overfull = np.where(sizes > cluster_bound)[0]
+        print(overfull)
         if overfull.size == 0:
             break
 

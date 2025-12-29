@@ -3,6 +3,7 @@ pub mod circuit_ivf_pq;
 pub mod commit_eval;
 pub mod hash_gadgets;
 pub mod ivf_flat;
+pub mod ivf_flat_verify;
 pub mod ivf_pq;
 pub mod ivf_pq_verify;
 pub mod merkle_commit;
@@ -19,6 +20,7 @@ use crate::commit_eval::fri::run;
 use crate::commit_eval::merkle::merkle_run;
 use crate::hash_gadgets::hash_u64;
 use crate::ivf_flat::proof::ivf_flat_proof;
+use crate::ivf_flat_verify::proof::ivf_flat_verify_proof;
 use crate::ivf_pq::proof::ivf_pq_proof;
 use crate::ivf_pq_verify::proof::ivf_pq_verify_proof;
 use crate::merkle_commit::proof::{merkle_commit_plain_proof, merkle_commit_proof};
@@ -373,6 +375,29 @@ fn py_ivf_flat_proof(
 }
 
 #[pyfunction]
+fn py_ivf_flat_verify_proof(
+    ivf_centers: Vec<Vec<u64>>,    // (n_list,d)
+    query: Vec<u64>,               // (d,)
+    sorted_idx_dis: Vec<Vec<u64>>, // (n_list,2)
+    vecss: Vec<Vec<Vec<u64>>>,     // (n_probe,n,d)
+    valids: Vec<Vec<u64>>,         // (n_probe,n)
+    itemss: Vec<Vec<u64>>,         // (n_probe,n)
+    top_k: usize,                  // 明确取哪top_k
+) -> PyResult<bool> {
+    let corr = ivf_flat_verify_proof(
+        ivf_centers,
+        query,
+        sorted_idx_dis,
+        vecss,
+        valids,
+        itemss,
+        top_k,
+    )
+    .is_ok();
+    Ok(corr)
+}
+
+#[pyfunction]
 fn py_ivf_pq_proof(
     ivf_centers: Vec<Vec<u64>>,      // (n_list,D)
     query: Vec<u64>,                 // (D,)
@@ -472,6 +497,7 @@ fn zk_IVF_PQ(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(py_brute_force_proof, m)?)?;
     m.add_function(wrap_pyfunction!(py_sort_brute_force_proof, m)?)?;
     m.add_function(wrap_pyfunction!(py_ivf_flat_proof, m)?)?;
+    m.add_function(wrap_pyfunction!(py_ivf_flat_verify_proof, m)?)?;
     m.add_function(wrap_pyfunction!(py_pq_flat_proof, m)?)?;
     m.add_function(wrap_pyfunction!(py_pq_flat_verify_proof, m)?)?;
     m.add_function(wrap_pyfunction!(py_pq_flat_com_proof, m)?)?;
