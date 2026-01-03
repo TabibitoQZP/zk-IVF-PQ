@@ -2,6 +2,7 @@ use crate::hash_gadgets::fs_oracle;
 use crate::pq_flat_com::proof::lut_gen_u64;
 use crate::pq_flat_verify::gadgets::pq_flat_verify_gadget;
 use crate::prelude::*;
+use crate::utils::metrics::metrics_eval;
 
 pub fn compress_u64(set: Vec<u64>, alpha: u64) -> u64 {
     let alpha_f = F::from_canonical_u64(alpha);
@@ -66,7 +67,7 @@ pub fn pq_flat_verify_proof(
     query: Vec<u64>,               // (D,)
     pq_vecs: Vec<Vec<u64>>,        // (N,M)
     sorted_idx_dis: Vec<Vec<u64>>, // (N,2)
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(f64, f64, f64, u64, u64, u64), Box<dyn std::error::Error>> {
     let D_ = query.len();
     let M = codebooks.len();
     let K = codebooks[0].len();
@@ -128,13 +129,8 @@ pub fn pq_flat_verify_proof(
     public_targets_1d(&mut builder, query_targets.clone());
     public_targets_1d(&mut builder, fs_hash_targets.clone());
 
-    // 构建电路
-    let mut curr_time = Instant::now();
-    let data = builder.build::<C>();
-    println!("构建电路耗时: {:?}", curr_time.elapsed());
-
     // 输入公开输入和witness
-    curr_time = Instant::now();
+    let curr_time = Instant::now();
     let mut pw = PartialWitness::new();
     input_targets_1d(&mut pw, fs_hash_targets, fs_hash)?;
     input_targets_3d(&mut pw, codebooks_targets, codebooks)?;
@@ -146,18 +142,6 @@ pub fn pq_flat_verify_proof(
     input_targets_1d(&mut pw, t__targets, t_)?;
     println!("输入witness: {:?}", curr_time.elapsed());
 
-    // 证明生成和验证
-    curr_time = Instant::now();
-    let proof = data.prove(pw)?;
-    println!("证明生成: {:?}", curr_time.elapsed());
-
-    // 证明大小
-    let compressed_proof = data.compress(proof.clone())?;
-    let compressed_bytes = compressed_proof.to_bytes();
-    println!("证明大小: {}B", compressed_bytes.len());
-
-    curr_time = Instant::now();
-    let _ = data.verify(proof);
-    println!("证明验证: {:?}", curr_time.elapsed());
-    Ok(())
+    let metrics = metrics_eval(builder, pw)?;
+    Ok(metrics)
 }

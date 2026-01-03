@@ -1,12 +1,12 @@
 """
 函数签名
 
-pub fn pq_flat_proof(
+pub fn pq_flat_verify_proof(
     codebooks: Vec<Vec<Vec<u64>>>, // (M,K,d)
     query: Vec<u64>,               // (D,)
     pq_vecs: Vec<Vec<u64>>,        // (N,M)
     sorted_idx_dis: Vec<Vec<u64>>, // (N,2)
-) -> Result<(), Box<dyn std::error::Error>> {}
+) -> Result<(f64, f64, f64, u64, u64, u64), Box<dyn std::error::Error>> {}
 """
 
 import argparse

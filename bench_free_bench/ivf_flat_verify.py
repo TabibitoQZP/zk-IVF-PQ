@@ -9,7 +9,7 @@ pub fn ivf_flat_verify_proof(
     valids: Vec<Vec<u64>>,         // (n_probe,n)
     itemss: Vec<Vec<u64>>,         // (n_probe,n)
     top_k: usize,                  // 明确取哪top_k
-) -> Result<(), Box<dyn std::error::Error>> {}
+) -> Result<(f64, f64, f64, u64, u64, u64), Box<dyn std::error::Error>> {}
 """
 
 import argparse
@@ -67,4 +67,3 @@ def bench():
 if __name__ == "__main__":
     print("ivf flat verify")
     bench()
-

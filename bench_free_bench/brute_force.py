@@ -5,7 +5,7 @@ pub fn brute_force_proof(
     src_vecs: Vec<Vec<u64>>,       // (N,D)
     query: Vec<u64>,               // (D,)
     sorted_idx_dis: Vec<Vec<u64>>, // (N,2)
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(f64, f64, f64, u64, u64, u64), Box<dyn std::error::Error>> {
 """
 
 import argparse

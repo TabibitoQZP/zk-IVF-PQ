@@ -305,9 +305,10 @@ fn py_brute_force_proof(
     src_vecs: Vec<Vec<u64>>,       // (N,D)
     query: Vec<u64>,               // (D,)
     sorted_idx_dis: Vec<Vec<u64>>, // (N,2)
-) -> PyResult<bool> {
-    let corr = brute_force_proof(src_vecs, query, sorted_idx_dis).is_ok();
-    Ok(corr)
+) -> PyResult<(f64, f64, f64, u64, u64, u64)> {
+    let metrics = brute_force_proof(src_vecs, query, sorted_idx_dis)
+        .map_err(|e| PyRuntimeError::new_err(format!("brute_force_proof failed: {e}")))?;
+    Ok(metrics)
 }
 
 #[pyfunction]
@@ -315,9 +316,10 @@ fn py_sort_brute_force_proof(
     src_vecs: Vec<Vec<u64>>, // (N,D)
     query: Vec<u64>,         // (D,)
     top_k: u64,
-) -> PyResult<bool> {
-    let corr = sort_brute_force_proof(src_vecs, query, top_k).is_ok();
-    Ok(corr)
+) -> PyResult<(f64, f64, f64, u64, u64, u64)> {
+    let metrics = sort_brute_force_proof(src_vecs, query, top_k)
+        .map_err(|e| PyRuntimeError::new_err(format!("sort_brute_force_proof failed: {e}")))?;
+    Ok(metrics)
 }
 
 #[pyfunction]
@@ -337,20 +339,10 @@ fn py_pq_flat_verify_proof(
     query: Vec<u64>,               // (D,)
     pq_vecs: Vec<Vec<u64>>,        // (N,M)
     sorted_idx_dis: Vec<Vec<u64>>, // (N,2)
-) -> PyResult<bool> {
-    // let corr = pq_flat_verify_proof(codebooks, query, pq_vecs, sorted_idx_dis).is_ok();
-    // Ok(corr)
-    if let Err(e) = pq_flat_verify_proof(codebooks, query, pq_vecs, sorted_idx_dis) {
-        eprintln!("error: {e}"); // Display：更简洁
-        let mut src = e.source();
-        while let Some(cause) = src {
-            // 打印 error chain（根因）
-            eprintln!("  caused by: {cause}");
-            src = cause.source();
-        }
-        return Ok(false);
-    }
-    Ok(true)
+) -> PyResult<(f64, f64, f64, u64, u64, u64)> {
+    let metrics = pq_flat_verify_proof(codebooks, query, pq_vecs, sorted_idx_dis)
+        .map_err(|e| PyRuntimeError::new_err(format!("pq_flat_verify_proof failed: {e}")))?;
+    Ok(metrics)
 }
 
 #[pyfunction]
@@ -383,8 +375,8 @@ fn py_ivf_flat_verify_proof(
     valids: Vec<Vec<u64>>,         // (n_probe,n)
     itemss: Vec<Vec<u64>>,         // (n_probe,n)
     top_k: usize,                  // 明确取哪top_k
-) -> PyResult<bool> {
-    let corr = ivf_flat_verify_proof(
+) -> PyResult<(f64, f64, f64, u64, u64, u64)> {
+    let metrics = ivf_flat_verify_proof(
         ivf_centers,
         query,
         sorted_idx_dis,
@@ -393,8 +385,8 @@ fn py_ivf_flat_verify_proof(
         itemss,
         top_k,
     )
-    .is_ok();
-    Ok(corr)
+    .map_err(|e| PyRuntimeError::new_err(format!("ivf_flat_verify_proof failed: {e}")))?;
+    Ok(metrics)
 }
 
 #[pyfunction]

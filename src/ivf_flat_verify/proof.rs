@@ -1,6 +1,7 @@
 use crate::hash_gadgets::fs_oracle;
 use crate::ivf_flat_verify::gadgets::ivf_flat_verify_gadget;
 use crate::prelude::*;
+use crate::utils::metrics::metrics_eval;
 
 fn l2_u64(a: u64, b: u64) -> u128 {
     let diff = if a >= b { a - b } else { b - a };
@@ -23,7 +24,7 @@ pub fn ivf_flat_verify_proof(
     valids: Vec<Vec<u64>>,         // (n_probe,n)
     itemss: Vec<Vec<u64>>,         // (n_probe,n)
     top_k: usize,                  // 明确取哪top_k
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(f64, f64, f64, u64, u64, u64), Box<dyn std::error::Error>> {
     let n_list = ivf_centers.len();
     let d = query.len();
     let n_probe = vecss.len();
@@ -88,11 +89,7 @@ pub fn ivf_flat_verify_proof(
 
     public_targets_1d(&mut builder, query_targets.clone());
 
-    let mut curr_time = Instant::now();
-    let data = builder.build::<C>();
-    println!("构建电路耗时: {:?}", curr_time.elapsed());
-
-    curr_time = Instant::now();
+    let curr_time = Instant::now();
     let mut pw = PartialWitness::new();
     input_targets_1d(&mut pw, fs_hash_targets, fs_hash)?;
     input_targets_2d(&mut pw, ivf_centers_targets, ivf_centers)?;
@@ -104,16 +101,6 @@ pub fn ivf_flat_verify_proof(
     input_targets_2d(&mut pw, ordered_items_dis_targets, ordered_items_dis)?;
     println!("输入witness: {:?}", curr_time.elapsed());
 
-    curr_time = Instant::now();
-    let proof = data.prove(pw)?;
-    println!("证明生成: {:?}", curr_time.elapsed());
-
-    let compressed_proof = data.compress(proof.clone())?;
-    let compressed_bytes = compressed_proof.to_bytes();
-    println!("证明大小: {}B", compressed_bytes.len());
-
-    curr_time = Instant::now();
-    let _ = data.verify(proof);
-    println!("证明验证: {:?}", curr_time.elapsed());
-    Ok(())
+    let metrics = metrics_eval(builder, pw)?;
+    Ok(metrics)
 }
