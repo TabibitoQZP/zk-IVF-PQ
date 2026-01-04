@@ -204,7 +204,7 @@ def _run_once(
         proof_size,
         memory_used,
         num_gates,
-    ) = set_bench(D, n_list, M, K, d, n_probe, n, merkled=False)
+    ) = set_bench(D, n_list, M, K, d, n_probe, n, merkled=True)
 
     # We treat prove_time as the "generation time" of the proof.
     return float(prove_time), float(num_gates)
@@ -563,15 +563,10 @@ def main() -> None:
         beta = float("nan")
         pearson_pg = float("nan")
 
-    print(
-        "\nLinear relation between prove_time and num_gates * log2(num_gates):"
-    )
+    print("\nLinear relation between prove_time and num_gates * log2(num_gates):")
     print("  prove_time ≈ alpha * (num_gates * log2(num_gates)) + beta")
     print(f"  alpha (slope) = {alpha:.6f}, beta (intercept) = {beta:.4f}")
-    print(
-        "  Pearson r(prove_time, num_gates * log2(num_gates)) "
-        f"= {pearson_pg:.6f}"
-    )
+    print(f"  Pearson r(prove_time, num_gates * log2(num_gates)) = {pearson_pg:.6f}")
 
     # Compute linear fit using num_gates_g = 2^{ceil(log2(num_gates))}
     # and feature num_gates_g * log2(num_gates_g).
@@ -596,23 +591,15 @@ def main() -> None:
         beta_gb = float("nan")
         pearson_pgb = float("nan")
 
-    print(
-        "\nLinear relation between prove_time and num_gates_g * log2(num_gates_g):"
-    )
+    print("\nLinear relation between prove_time and num_gates_g * log2(num_gates_g):")
     print(
         "  where num_gates_g = 2^{ceil(log2(num_gates))} "
         "(the first power of two ≥ num_gates)"
     )
+    print("  prove_time ≈ alpha_g * (num_gates_g * log2(num_gates_g)) + beta_g")
+    print(f"  alpha_g (slope) = {alpha_gb:.6f}, beta_g (intercept) = {beta_gb:.4f}")
     print(
-        "  prove_time ≈ alpha_g * (num_gates_g * log2(num_gates_g)) + beta_g"
-    )
-    print(
-        f"  alpha_g (slope) = {alpha_gb:.6f}, "
-        f"beta_g (intercept) = {beta_gb:.4f}"
-    )
-    print(
-        "  Pearson r(prove_time, num_gates_g * log2(num_gates_g)) "
-        f"= {pearson_pgb:.6f}"
+        f"  Pearson r(prove_time, num_gates_g * log2(num_gates_g)) = {pearson_pgb:.6f}"
     )
 
     print("\nSummary of configurations (prove_time / num_gates mean ± 95% CI):")
