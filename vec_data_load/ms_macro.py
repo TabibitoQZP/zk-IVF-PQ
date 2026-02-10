@@ -29,6 +29,16 @@ DATASET_PRESETS = {
         "db_path": Path("data/msmacro/queries.dev.duckdb"),
         "table_name": "queries_dev_embeddings",
     },
+    "queries_train": {
+        "tsv_path": Path("data/msmacro/queries.train.tsv"),
+        "db_path": Path("data/msmacro/queries.train.duckdb"),
+        "table_name": "queries_train_embeddings",
+    },
+    "queries_eval": {
+        "tsv_path": Path("data/msmacro/queries.eval.tsv"),
+        "db_path": Path("data/msmacro/queries.eval.duckdb"),
+        "table_name": "queries_eval_embeddings",
+    },
 }
 
 
@@ -58,9 +68,16 @@ def _ensure_table(conn: duckdb.DuckDBPyConnection, table_name: str, dim: int) ->
     )
 
 
-def _existing_rows(conn: duckdb.DuckDBPyConnection, table_name: str) -> int:
-    row = conn.execute(f"SELECT COUNT(*) FROM {table_name};").fetchone()
-    return int(row[0]) if row else 0
+def _table_row_stats(conn: duckdb.DuckDBPyConnection, table_name: str) -> Tuple[int, int]:
+    """
+    Returns: (row_count, max_row_id) where max_row_id is -1 if table is empty.
+    """
+    row = conn.execute(
+        f"SELECT COUNT(*) AS n, COALESCE(MAX(row_id), -1) AS max_row_id FROM {table_name};"
+    ).fetchone()
+    if not row:
+        return 0, -1
+    return int(row[0]), int(row[1])
 
 
 def _iter_tsv_rows(
@@ -104,7 +121,8 @@ def _embed_texts(
     )
     encoded = {k: v.to(device) for k, v in encoded.items()}
 
-    with torch.no_grad():
+    inference_ctx = getattr(torch, "inference_mode", torch.no_grad)
+    with inference_ctx():
         output = model(**encoded)
 
     pooled = mean_pooling(output, encoded["attention_mask"])
@@ -125,7 +143,15 @@ def process_tsv_to_duckdb(
     max_length: int,
     normalize: bool,
     max_rows: Optional[int],
+    limit: Optional[int],
 ) -> None:
+    if batch_size <= 0:
+        raise ValueError("batch_size must be > 0")
+    if max_length <= 0:
+        raise ValueError("max_length must be > 0")
+    if max_rows is not None and max_rows < 0:
+        raise ValueError("max_rows must be >= 0")
+
     tsv_path = tsv_path.expanduser().resolve()
     db_path = db_path.expanduser().resolve()
     db_path.parent.mkdir(parents=True, exist_ok=True)
@@ -134,49 +160,75 @@ def process_tsv_to_duckdb(
     embedding_dim = int(model.config.hidden_size)
     _ensure_table(conn, table_name, embedding_dim)
 
-    start_row = _existing_rows(conn, table_name)
-    if max_rows is not None and start_row >= max_rows:
-        print(f"[{table_name}] already processed {start_row} rows (>= max_rows={max_rows}), nothing to do")
+    existing_rows, max_row_id = _table_row_stats(conn, table_name)
+    start_row = max_row_id + 1
+    if start_row != existing_rows:
+        print(
+            f"[{table_name}] warning: table has gaps (count={existing_rows}, max_row_id={max_row_id}); "
+            "resuming from max_row_id+1"
+        )
+
+    effective_max_rows = max_rows
+    if limit is not None:
+        if limit < 0:
+            raise ValueError("limit must be >= 0")
+        stop_row = start_row + limit
+        effective_max_rows = (
+            stop_row if effective_max_rows is None else min(effective_max_rows, stop_row)
+        )
+
+    if effective_max_rows is not None and start_row >= effective_max_rows:
+        parts = [f"start_row={start_row}", f"stop_row={effective_max_rows}"]
+        if max_rows is not None:
+            parts.append(f"max_rows={max_rows}")
+        if limit is not None:
+            parts.append(f"limit={limit}")
+        print(f"[{table_name}] nothing to do ({', '.join(parts)})")
         conn.close()
         return
 
-    rows_iter = _iter_tsv_rows(tsv_path, start_row=start_row, max_rows=max_rows)
-    total_remaining = None
-    if max_rows is not None:
-        total_remaining = max_rows - start_row
-        total_remaining = max(total_remaining, 0)
-
+    rows_iter = _iter_tsv_rows(tsv_path, start_row=start_row, max_rows=effective_max_rows)
+    pbar = None
     if tqdm is not None:
-        rows_iter = tqdm(rows_iter, total=total_remaining, desc=table_name, unit="row")
+        total = None
+        if effective_max_rows is not None:
+            total = max(0, effective_max_rows - start_row)
+        pbar = tqdm(total=total, desc=table_name, unit="row")
 
     processed = 0
-    while True:
-        batch = list(itertools.islice(rows_iter, batch_size))
-        if not batch:
-            break
+    try:
+        while True:
+            batch = list(itertools.islice(rows_iter, batch_size))
+            if not batch:
+                break
 
-        texts = [text for _, _, text in batch]
-        embeddings = _embed_texts(
-            tokenizer,
-            model,
-            device,
-            texts,
-            max_length=max_length,
-            normalize=normalize,
-        )
+            texts = [text for _, _, text in batch]
+            embeddings = _embed_texts(
+                tokenizer,
+                model,
+                device,
+                texts,
+                max_length=max_length,
+                normalize=normalize,
+            )
 
-        to_insert = [
-            (row_id, item_id, emb) for (row_id, item_id, _), emb in zip(batch, embeddings)
-        ]
-        conn.executemany(
-            f"""
-            INSERT INTO {table_name} (row_id, item_id, embedding)
-            VALUES (?, ?, ?)
-            ON CONFLICT(row_id) DO NOTHING;
-            """,
-            to_insert,
-        )
-        processed += len(batch)
+            to_insert = [
+                (row_id, item_id, emb) for (row_id, item_id, _), emb in zip(batch, embeddings)
+            ]
+            conn.executemany(
+                f"""
+                INSERT INTO {table_name} (row_id, item_id, embedding)
+                VALUES (?, ?, ?)
+                ON CONFLICT(row_id) DO NOTHING;
+                """,
+                to_insert,
+            )
+            processed += len(batch)
+            if pbar is not None:
+                pbar.update(len(batch))
+    finally:
+        if pbar is not None:
+            pbar.close()
 
     conn.close()
     print(f"[{table_name}] processed {processed} new rows (start={start_row}, total_written={start_row + processed})")
@@ -184,7 +236,7 @@ def process_tsv_to_duckdb(
 
 def build_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Encode MS MARCO TSV (collection or queries.dev) into DuckDB embeddings (resumable)."
+        description="Encode MS MARCO TSV (collection / queries.*) into DuckDB embeddings (resumable)."
     )
     parser.add_argument(
         "--dataset",
@@ -203,6 +255,12 @@ def build_arg_parser() -> argparse.ArgumentParser:
         type=int,
         default=None,
         help="最多处理多少行（相当于 TSV 前 N 行；默认处理到文件结尾）",
+    )
+    parser.add_argument(
+        "--limit",
+        type=int,
+        default=None,
+        help="本次运行最多新增处理多少行（用于分批跑；默认不限制）",
     )
     parser.add_argument(
         "--max-length",
@@ -245,6 +303,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         max_length=args.max_length,
         normalize=args.normalize,
         max_rows=args.max_rows,
+        limit=args.limit,
     )
     return 0
 

@@ -192,9 +192,10 @@ def ci95_from_topk_caches(paths: List[str | Path]) -> Dict[str, np.ndarray]:
 
 
 if __name__ == "__main__":
+    avgval = 50
     caches = ensure_bupt_cbface_topk_caches(
-        "data/BUPT-CBFace-50",
-        ground_truth_k=49,
+        f"data/BUPT-CBFace-{avgval}",
+        ground_truth_k=avgval - 1,
         top_k=100,
         sample_seed=0,
         cluster_bound=1024,
@@ -210,3 +211,117 @@ if __name__ == "__main__":
             f"zk_hit={summary['zk_mean_hit_curve'][i]:.6f}±{summary['zk_ci95_hit_curve'][i]:.6f} "
             f"zk_recall={summary['zk_mean_recall_curve'][i]:.6f}±{summary['zk_ci95_recall_curve'][i]:.6f}"
         )
+    print()
+
+    avgval = 12
+    caches = ensure_bupt_cbface_topk_caches(
+        f"data/BUPT-CBFace-{avgval}",
+        ground_truth_k=avgval - 1,
+        top_k=100,
+        sample_seed=0,
+        cluster_bound=1024,
+        num_runs=5,
+    )
+    summary = ci95_from_topk_caches(caches)
+    for k in (1, 10, 100):
+        i = k - 1
+        print(
+            f"k={k:3d} "
+            f"std_hit={summary['standard_mean_hit_curve'][i]:.6f}±{summary['standard_ci95_hit_curve'][i]:.6f} "
+            f"std_recall={summary['standard_mean_recall_curve'][i]:.6f}±{summary['standard_ci95_recall_curve'][i]:.6f} "
+            f"zk_hit={summary['zk_mean_hit_curve'][i]:.6f}±{summary['zk_ci95_hit_curve'][i]:.6f} "
+            f"zk_recall={summary['zk_mean_recall_curve'][i]:.6f}±{summary['zk_ci95_recall_curve'][i]:.6f}"
+        )
+    print()
+
+    avgval = 50
+    caches = ensure_bupt_cbface_topk_caches(
+        f"data/BUPT-CBFace-{avgval}",
+        ground_truth_k=avgval - 1,
+        top_k=100,
+        sample_seed=0,
+        n_list=8192,
+        n_probe=64,
+        cluster_bound=128,
+        num_runs=5,
+    )
+    summary = ci95_from_topk_caches(caches)
+    for k in (1, 10, 100):
+        i = k - 1
+        print(
+            f"k={k:3d} "
+            f"std_hit={summary['standard_mean_hit_curve'][i]:.6f}±{summary['standard_ci95_hit_curve'][i]:.6f} "
+            f"std_recall={summary['standard_mean_recall_curve'][i]:.6f}±{summary['standard_ci95_recall_curve'][i]:.6f} "
+            f"zk_hit={summary['zk_mean_hit_curve'][i]:.6f}±{summary['zk_ci95_hit_curve'][i]:.6f} "
+            f"zk_recall={summary['zk_mean_recall_curve'][i]:.6f}±{summary['zk_ci95_recall_curve'][i]:.6f}"
+        )
+    print()
+
+    avgval = 12
+    caches = ensure_bupt_cbface_topk_caches(
+        f"data/BUPT-CBFace-{avgval}",
+        ground_truth_k=avgval - 1,
+        top_k=100,
+        sample_seed=0,
+        n_list=8192,
+        n_probe=64,
+        cluster_bound=128,
+        num_runs=5,
+    )
+    summary = ci95_from_topk_caches(caches)
+    for k in (1, 10, 100):
+        i = k - 1
+        print(
+            f"k={k:3d} "
+            f"std_hit={summary['standard_mean_hit_curve'][i]:.6f}±{summary['standard_ci95_hit_curve'][i]:.6f} "
+            f"std_recall={summary['standard_mean_recall_curve'][i]:.6f}±{summary['standard_ci95_recall_curve'][i]:.6f} "
+            f"zk_hit={summary['zk_mean_hit_curve'][i]:.6f}±{summary['zk_ci95_hit_curve'][i]:.6f} "
+            f"zk_recall={summary['zk_mean_recall_curve'][i]:.6f}±{summary['zk_ci95_recall_curve'][i]:.6f}"
+        )
+    print()
+
+    avgval = 50
+    caches = ensure_bupt_cbface_topk_caches(
+        f"data/BUPT-CBFace-{avgval}",
+        ground_truth_k=avgval - 1,
+        top_k=100,
+        sample_seed=0,
+        n_list=512,
+        n_probe=4,
+        cluster_bound=2048,
+        num_runs=5,
+    )
+    summary = ci95_from_topk_caches(caches)
+    for k in (1, 10, 100):
+        i = k - 1
+        print(
+            f"k={k:3d} "
+            f"std_hit={summary['standard_mean_hit_curve'][i]:.6f}±{summary['standard_ci95_hit_curve'][i]:.6f} "
+            f"std_recall={summary['standard_mean_recall_curve'][i]:.6f}±{summary['standard_ci95_recall_curve'][i]:.6f} "
+            f"zk_hit={summary['zk_mean_hit_curve'][i]:.6f}±{summary['zk_ci95_hit_curve'][i]:.6f} "
+            f"zk_recall={summary['zk_mean_recall_curve'][i]:.6f}±{summary['zk_ci95_recall_curve'][i]:.6f}"
+        )
+    print()
+
+    avgval = 12
+    caches = ensure_bupt_cbface_topk_caches(
+        f"data/BUPT-CBFace-{avgval}",
+        ground_truth_k=avgval - 1,
+        top_k=100,
+        sample_seed=0,
+        n_list=512,
+        n_probe=4,
+        cluster_bound=2048,
+        num_runs=5,
+    )
+    summary = ci95_from_topk_caches(caches)
+    for k in (1, 10, 100):
+        i = k - 1
+        print(
+            f"k={k:3d} "
+            f"std_hit={summary['standard_mean_hit_curve'][i]:.6f}±{summary['standard_ci95_hit_curve'][i]:.6f} "
+            f"std_recall={summary['standard_mean_recall_curve'][i]:.6f}±{summary['standard_ci95_recall_curve'][i]:.6f} "
+            f"zk_hit={summary['zk_mean_hit_curve'][i]:.6f}±{summary['zk_ci95_hit_curve'][i]:.6f} "
+            f"zk_recall={summary['zk_mean_recall_curve'][i]:.6f}±{summary['zk_ci95_recall_curve'][i]:.6f}"
+        )
+    print()

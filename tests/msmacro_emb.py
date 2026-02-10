@@ -14,7 +14,7 @@ sentences = ['This is an example sentence', 'Each sentence is converted']
 
 # Load model from HuggingFace Hub
 tokenizer = AutoTokenizer.from_pretrained('sentence-transformers/msmarco-MiniLM-L6-v3')
-model = AutoModel.from_pretrained('sentence-transformers/msmarco-MiniLM-L6-v3')
+model = AutoModel.from_pretrained('sentence-transformers/msmarco-MiniLM-L6-v3').to('cpu')
 
 # Tokenize sentences
 encoded_input = tokenizer(sentences, padding=True, truncation=True, return_tensors='pt')
@@ -27,4 +27,4 @@ with torch.no_grad():
 sentence_embeddings = mean_pooling(model_output, encoded_input['attention_mask'])
 
 print("Sentence embeddings:")
-print(sentence_embeddings)
+print(sentence_embeddings.shape)

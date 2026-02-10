@@ -68,3 +68,12 @@ python -m bench.optimal_config \
   --selected_count 16384 \
   --c 7 \
   --num-runs 5
+
+python -m bench.optimal_config \
+  --N 1048576 \
+  --D 512 \
+  --M 8 \
+  --K 256 \
+  --selected_count 8192 \
+  --c 8 \
+  --num-runs 5
