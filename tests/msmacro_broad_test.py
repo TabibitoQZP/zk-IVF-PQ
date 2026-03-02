@@ -7,7 +7,7 @@ import shutil
 import sys
 import time
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
 import numpy as np
 from tqdm import tqdm
@@ -224,6 +224,136 @@ def _check_unit_norm_samples(
             f"{name} does not appear L2-normalized: worst |norm-1|={worst:.6g} > tol={tol}. "
             "Regenerate the cache with row-normalization (or inspect the DuckDB embeddings)."
         )
+
+
+def _get_metric(row: dict, *, k: int, field: str) -> float:
+    metrics = row.get("metrics")
+    if not isinstance(metrics, dict):
+        raise ValueError("Row missing metrics dict")
+    key = str(int(k))
+    if key in metrics:
+        m = metrics[key]
+    elif k in metrics:
+        m = metrics[k]
+    else:
+        raise KeyError(f"metrics missing k={k}")
+    if not isinstance(m, dict) or field not in m:
+        raise KeyError(f"metrics[{k}] missing field {field!r}")
+    return float(m[field])
+
+
+def _lazy_import_pyplot():
+    try:
+        import matplotlib
+        matplotlib.use("Agg", force=True)
+        import matplotlib.pyplot as plt
+    except Exception as e:  # pragma: no cover
+        raise RuntimeError(
+            "Plotting requires matplotlib. Install it (e.g. `pip install matplotlib`) "
+            "or run without --plot/--plot-only."
+        ) from e
+    return plt
+
+
+def plot_from_report(
+    *,
+    report: dict,
+    out_dir: Path,
+    plot_dir: Optional[Path] = None,
+    xscale: str = "log",
+    fmt: str = "png",
+) -> List[Path]:
+    """
+    Plot speed-accuracy curves using report.json:
+      - MRR@10 vs QPS
+      - hit@1000 vs QPS
+
+    All series are drawn on the same axes for each figure.
+    """
+    if xscale not in ("linear", "log"):
+        raise ValueError("--plot-xscale must be 'linear' or 'log'")
+    fmt = fmt.strip().lower().lstrip(".") or "png"
+
+    rows = report.get("rows")
+    if not isinstance(rows, list) or not rows:
+        raise ValueError("report has no rows to plot")
+
+    # group rows by series name (4 schemes in our default config)
+    by_name: Dict[str, List[dict]] = {}
+    for r in rows:
+        if not isinstance(r, dict):
+            continue
+        name = str(r.get("name", "")).strip() or "unknown"
+        by_name.setdefault(name, []).append(r)
+
+    # Sort each curve by x (QPS), then by sweep_value for stability.
+    for name in by_name:
+        by_name[name].sort(
+            key=lambda r: (
+                float(r.get("qps_total") or 0.0),
+                int(r.get("sweep_value") or 0),
+            )
+        )
+
+    out_dir = out_dir.expanduser().resolve()
+    plot_dir = (out_dir / "plots") if plot_dir is None else plot_dir.expanduser().resolve()
+    plot_dir.mkdir(parents=True, exist_ok=True)
+
+    plt = _lazy_import_pyplot()
+
+    def make_fig(*, k: int, field: str, ylabel: str, out_name: str) -> Optional[Path]:
+        fig, ax = plt.subplots(figsize=(6.5, 4.2))
+        for name, lst in by_name.items():
+            xs: List[float] = []
+            ys: List[float] = []
+            for r in lst:
+                qps = r.get("qps_total")
+                if not isinstance(qps, (int, float)) or qps <= 0:
+                    continue
+                try:
+                    y = _get_metric(r, k=k, field=field)
+                except Exception:
+                    continue
+                xs.append(float(qps))
+                ys.append(float(y))
+            if not xs:
+                continue
+            ax.plot(xs, ys, marker="o", linewidth=1.5, markersize=4, label=name)
+
+        if not ax.lines:
+            plt.close(fig)
+            return None
+
+        ax.set_xlabel("QPS (queries/sec)")
+        ax.set_ylabel(ylabel)
+        if xscale == "log":
+            ax.set_xscale("log")
+        ax.grid(True, which="both", linestyle="--", linewidth=0.6, alpha=0.4)
+        ax.legend(loc="best", fontsize=8)
+        fig.tight_layout()
+
+        out_path = plot_dir / f"{out_name}.{fmt}"
+        fig.savefig(out_path, dpi=200, bbox_inches="tight")
+        plt.close(fig)
+        return out_path
+
+    paths: List[Path] = []
+
+    for k in (10, 100, 1000):
+        out = make_fig(k=k, field="hit", ylabel=f"Hit@{k}", out_name=f"hit{k}_vs_qps")
+        if out is not None:
+            paths.append(out)
+
+    for k in (10, 100, 1000):
+        out = make_fig(k=k, field="mrr", ylabel=f"MRR@{k}", out_name=f"mrr{k}_vs_qps")
+        if out is not None:
+            paths.append(out)
+
+    if not paths:
+        raise ValueError(
+            "No plots generated. Ensure report.json contains qps_total and metrics for k in {10,100,1000}."
+        )
+    return paths
 
 
 def _make_index(
@@ -742,6 +872,13 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     )
     p.add_argument("--save-report", type=str, default="", help="Optional path to save metrics JSON.")
 
+    p.add_argument("--plot", action="store_true", help="Generate plots after writing report.json.")
+    p.add_argument("--plot-only", action="store_true", help="Only plot from an existing report.json and exit.")
+    p.add_argument("--report-path", type=str, default="", help="Optional report.json path for --plot-only.")
+    p.add_argument("--plot-dir", type=str, default="", help="Optional output dir for plots (default: <out-dir>/plots).")
+    p.add_argument("--plot-xscale", type=str, default="log", choices=["linear", "log"])
+    p.add_argument("--plot-format", type=str, default="png", help="Plot format: png/pdf/svg (default: png).")
+
     p.add_argument("--write-example-config", type=str, default="", help="Write an example config JSON and exit.")
     args = p.parse_args(argv)
 
@@ -752,15 +889,37 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         print(f"[msmacro_broad_test] wrote example config to {out}")
         return 0
 
+    out_dir = Path(args.out_dir).expanduser().resolve()
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    if args.plot_only:
+        report_path = (
+            Path(args.report_path).expanduser().resolve()
+            if args.report_path
+            else out_dir / "report.json"
+        )
+        if not report_path.exists():
+            raise SystemExit(f"report not found: {report_path}")
+        report = _load_json(report_path)
+        plot_dir = Path(args.plot_dir).expanduser().resolve() if args.plot_dir else None
+        paths = plot_from_report(
+            report=report,
+            out_dir=out_dir,
+            plot_dir=plot_dir,
+            xscale=str(args.plot_xscale),
+            fmt=str(args.plot_format),
+        )
+        for pth in paths:
+            print(f"[msmacro_broad_test] wrote plot: {pth}")
+        return 0
+
     if not args.config:
-        raise SystemExit("--config is required (or use --write-example-config)")
+        raise SystemExit("--config is required (or use --write-example-config / --plot-only)")
 
     config_path = Path(args.config).expanduser().resolve()
     cfg_raw = _load_json(config_path)
     cfg = _validate_config(cfg_raw)
 
-    out_dir = Path(args.out_dir).expanduser().resolve()
-    out_dir.mkdir(parents=True, exist_ok=True)
     _atomic_write_json(out_dir / "used_config.json", cfg_raw)
 
     collection_db_path = Path(args.collection_db).expanduser().resolve()
@@ -916,11 +1075,30 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         if args.save_report
         else out_dir / "report.json"
     )
+    report_payload = {
+        "created_at": _now_tag(),
+        "slice": slice_info,
+        "metric": cfg["metric_name"],
+        "rows": report_rows,
+        "ks": ks,
+    }
     _atomic_write_json(
         report_path,
-        {"created_at": _now_tag(), "slice": slice_info, "metric": cfg["metric_name"], "rows": report_rows, "ks": ks},
+        report_payload,
     )
     print(f"[msmacro_broad_test] wrote report: {report_path}")
+
+    if args.plot:
+        plot_dir = Path(args.plot_dir).expanduser().resolve() if args.plot_dir else None
+        paths = plot_from_report(
+            report=report_payload,
+            out_dir=out_dir,
+            plot_dir=plot_dir,
+            xscale=str(args.plot_xscale),
+            fmt=str(args.plot_format),
+        )
+        for pth in paths:
+            print(f"[msmacro_broad_test] wrote plot: {pth}")
     return 0
 
 

@@ -1,3 +1,4 @@
+# SIFT1M
 python -m bench.optimal_mem_gate_only \
   --merkled \
   --D 128 \
@@ -5,6 +6,7 @@ python -m bench.optimal_mem_gate_only \
   --n-probe 64 \
   --n 256
 
+# GIST1M
 python -m bench.optimal_mem_gate_only \
   --merkled \
   --D 960 \
@@ -12,6 +14,7 @@ python -m bench.optimal_mem_gate_only \
   --n-probe 64 \
   --n 256
 
+# face
 python -m bench.optimal_mem_gate_only \
   --merkled \
   --D 512 \
@@ -42,7 +45,7 @@ python -m bench.optimal_mem_gate_only \
 
 
 
-
+# IR: ms macro
 python -m bench.optimal_mem_gate_only \
   --merkled \
   --D 384 \
