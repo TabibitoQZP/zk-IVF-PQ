@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Keep --top-k at 100 because the bundled GT is top-100 only.
+# recall@500 still works via --report-ks because recall uses the legacy hit-style semantics.
+
 # Experiment 1 / Classic ANN (Table "Experiment 1 datasets and IVF-PQ layouts")
 # SIFT1M high-acc: (n_list, n_probe, n) = (8192, 64, 256)
 CUDA_VISIBLE_DEVICES=7 python -m tests.acc_bench \

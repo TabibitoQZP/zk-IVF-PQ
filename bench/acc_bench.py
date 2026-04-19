@@ -21,7 +21,7 @@ RESULT_DIR = Path("data") / "acc_bench"
 RESULT_DIR.mkdir(parents=True, exist_ok=True)
 
 DEFAULT_REPORT_KS: Tuple[int, ...] = (1, 10, 50, 100)
-METRIC_VERSION = 3
+METRIC_VERSION = 4
 SUMMARY_EXTRA_KEYS: Dict[str, Tuple[Tuple[str, str], ...]] = {
     "standard": (
         ("train_time", "standard_train_time"),
@@ -69,12 +69,13 @@ def _legacy_alias_keys() -> Tuple[str, ...]:
     )
 
 
-def _required_run_keys(report_ks: Tuple[int, ...]) -> Tuple[str, ...]:
+def _required_run_keys(report_ks: Tuple[int, ...], *, top_k: int) -> Tuple[str, ...]:
     keys: List[str] = list(_legacy_alias_keys())
     for scheme in ("standard", "zk"):
-        for metric in ("pass", "recall"):
-            for k in report_ks:
-                keys.append(_metric_key(scheme, metric, k))
+        for k in report_ks:
+            keys.append(_metric_key(scheme, "recall", k))
+            if int(k) <= int(top_k):
+                keys.append(_metric_key(scheme, "pass", k))
     return tuple(keys)
 
 
@@ -103,12 +104,12 @@ def _query_metrics(
     out: Dict[str, float] = {}
     for k in report_ks:
         pred_prefix = pred_arr[: min(int(k), pred_arr.size)]
-        gt_prefix = gt_arr[: int(k)]
-        # recall@k: ground truth 的前 k 个中，至少有一个被检索到
-        inter = np.intersect1d(pred_prefix, gt_prefix)
-        out[_metric_key(scheme, "recall", k)] = 1.0 if inter.size > 0 else 0.0
-        # pass@k: 仅当 k <= 实际检索数量时才计算
-        if k <= pred_arr.size:
+        # recall@k 沿用旧版语义：只看最优真邻居是否出现在 pred[:k] 中。
+        out[_metric_key(scheme, "recall", k)] = 1.0 if best_gt in pred_prefix else 0.0
+        # pass@k 仍按 pred[:k] 与 gt[:k] 的交集比例计算，但只在 GT 深度足够时输出。
+        if k <= pred_arr.size and k <= gt_arr.size:
+            gt_prefix = gt_arr[: int(k)]
+            inter = np.intersect1d(pred_prefix, gt_prefix)
             out[_metric_key(scheme, "pass", k)] = float(inter.size) / float(k)
     return out
 
@@ -160,6 +161,7 @@ def _result_file_name(
 def _load_cached(
     path: Path,
     *,
+    top_k: int,
     report_ks: Tuple[int, ...],
     layout: str | None,
 ) -> List[Dict[str, float]]:
@@ -167,6 +169,9 @@ def _load_cached(
         return []
     with path.open("r", encoding="utf-8") as f:
         payload = json.load(f)
+
+    if int(payload.get("metric_version", 0)) != METRIC_VERSION:
+        return []
 
     config = payload.get("config")
     cached_report_ks: Tuple[int, ...] | None = None
@@ -188,7 +193,7 @@ def _load_cached(
     if cached_layout != normalize_layout(layout):
         return []
 
-    required_keys = set(_required_run_keys(report_ks))
+    required_keys = set(_required_run_keys(report_ks, top_k=top_k))
     runs = payload.get("runs", [])
     out: List[Dict[str, float]] = []
     for run in runs:
@@ -321,7 +326,10 @@ def _run_once(
 ) -> Dict[str, float]:
     """
     进行一次训练 + 检索，对标准 IVF-PQ 与 ZK IVF-PQ
-    从同一次 top_k 检索结果中同时计算多个 k 的 pass@k 与 recall@k。
+    从同一次检索结果中同时计算多个 k 的指标。
+
+    - recall@k: 沿用旧版 hit 语义，只看真值第 1 名是否落在 pred[:k]。
+    - pass@k: 仍按 pred[:k] 与 gt[:k] 的交集比例计算，但仅在 GT 深度足够时输出。
     """
     base = np.asarray(database_vecs, dtype=np.float32)
     queries = np.asarray(query_vecs, dtype=np.float32)
@@ -347,12 +355,8 @@ def _run_once(
         Q_gt, K_gt = gt_arr.shape
         if Q_gt != Q:
             raise ValueError(f"gt_vecs Q mismatch: expected {Q}, got {Q_gt}")
-        if max_report_k > K_gt:
-            raise ValueError(
-                f"max_report_k={max_report_k} exceeds available ground-truth size K_gt={K_gt}"
-            )
         t0 = time.time()
-        gt_topk = [gt_arr[i, :max_report_k] for i in range(Q)]
+        gt_topk = gt_arr
         bruteforce_time = time.time() - t0
         print(f"[acc_bench] bruteforce_time(precomputed_gt)={bruteforce_time:.3f}s")
     else:
@@ -525,7 +529,7 @@ def run_accuracy_bench(
         database_vecs: (N, D) 向量库
         query_vecs: (Q, D) 查询向量
         gt_vecs: (Q, K_gt) 预先计算好的 ground truth 邻居索引（例如 SIFT 的前 100 个真近邻）
-        top_k: 单次检索返回的最大 K（需满足 top_k <= K_gt）
+        top_k: GT 受限指标深度与兼容别名使用的 K（需满足 top_k <= K_gt）
         name: 用于缓存文件名的前缀，方便区分实验
         n_list, M, K, n_probe: IVF-PQ 超参数
         scale_n: ZK 版本 rescale 时的整数上界
@@ -533,7 +537,8 @@ def run_accuracy_bench(
         num_runs: 训练 / 评估重复次数，用于估计 95% CI
         force_recompute: 若为 True，则忽略已缓存结果，重新计算所有 run
         report_ks: 需要汇报的多个 k。若为 None，则默认汇报 1/10/50/100，
-            并自动补上 top_k 本身（若不在其中）。
+            并自动补上 top_k 本身（若不在其中）。其中 recall@k 可超过 K_gt，
+            但 pass@k 只会在对应 GT 深度存在时输出。
         layout: 向量维度布局；None 表示保持原始顺序，"mod8" 表示论文中的模 8 重排。
     返回:
         {
@@ -592,6 +597,7 @@ def run_accuracy_bench(
     else:
         runs = _load_cached(
             path,
+            top_k=top_k,
             report_ks=resolved_report_ks,
             layout=resolved_layout,
         )

@@ -140,8 +140,9 @@ def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
             "Accuracy benchmark for SIFT/GIST: compare standard IVF-PQ vs ZK IVF-PQ "
-            "against provided ground-truth (ivecs), and report both pass@k and recall@k "
-            "for multiple ks from one run. Results are cached under data/acc_bench/."
+            "against provided ground-truth (ivecs), using the legacy hit-style recall@k "
+            "definition and reporting multiple ks from one run. Results are cached under "
+            "data/acc_bench/."
         )
     )
     parser.add_argument(
@@ -161,14 +162,23 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--n-probe", type=int, default=8)
     parser.add_argument("--M", type=int, default=8)
     parser.add_argument("--K", type=int, default=256)
-    parser.add_argument("--top-k", type=int, default=100)
+    parser.add_argument(
+        "--top-k",
+        type=int,
+        default=100,
+        help=(
+            "GT-limited depth used for pass@k and compatibility aliases. "
+            "For SIFT/GIST this should stay <= 100."
+        ),
+    )
     parser.add_argument(
         "--report-ks",
         type=str,
         default="",
         help=(
-            "Comma-separated ks to report from the single top-k retrieval "
-            f"(default: {','.join(str(k) for k in DEFAULT_REPORT_KS)}; top-k is always included)."
+            "Comma-separated ks to report from one retrieval pass "
+            f"(default: {','.join(str(k) for k in DEFAULT_REPORT_KS)}; top-k is always included). "
+            "recall@k may exceed the GT depth, while pass@k is only reported where GT is available."
         ),
     )
     parser.add_argument(
