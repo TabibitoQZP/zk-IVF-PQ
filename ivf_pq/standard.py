@@ -1,5 +1,6 @@
 import numpy as np
 
+from ivf_pq.layout import apply_layout
 from ivf_pq.util.kmeans import faiss_kmeans_with_ids
 
 
@@ -10,6 +11,7 @@ def ivf_pq_learn(
     M: int = 8,
     K: int = 256,
     random_state: int | None = 1234,
+    layout: str | None = None,
 ):
     """
     使用浮点数实现的标准 IVF-PQ 训练流程（无零知识相关约束）。
@@ -21,7 +23,7 @@ def ivf_pq_learn(
         quant_vecs: (N, M) 每个向量在各子空间的码字索引（int64）
         id_groups: {cluster_id: np.ndarray[ids]} 每个 coarse 簇中的向量 id
     """
-    vecs = np.asarray(vecs, dtype=np.float32)
+    vecs = apply_layout(np.asarray(vecs, dtype=np.float32), layout)
     if vecs.ndim != 2:
         raise ValueError("vecs must be 2D array of shape (N, D)")
 
@@ -82,11 +84,12 @@ def ivf_pq_query(
     quant_vecs: np.ndarray,
     id_groups: dict,
     n_probe: int = 8,
+    layout: str | None = None,
 ) -> np.ndarray:
     """
     标准 IVF-PQ 检索（浮点数版本），返回近似 top_k 邻居索引。
     """
-    query = np.asarray(query, dtype=np.float32)
+    query = apply_layout(np.asarray(query, dtype=np.float32), layout)
     center = np.asarray(center, dtype=np.float32)
     code_books = np.asarray(code_books, dtype=np.float32)
     quant_vecs = np.asarray(quant_vecs, dtype=np.int64)

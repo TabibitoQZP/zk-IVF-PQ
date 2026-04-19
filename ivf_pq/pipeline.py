@@ -1,4 +1,5 @@
 import numpy as np
+from ivf_pq.layout import apply_layout
 from ivf_pq.util.kmeans import faiss_kmeans_with_ids
 
 
@@ -8,7 +9,9 @@ def ivf_pq_learn(
     n_iter=64,
     M=8,
     K=256,
+    layout: str | None = None,
 ):
+    vecs = apply_layout(np.asarray(vecs), layout)
     N, D = vecs.shape
 
     d = D // M
@@ -47,7 +50,9 @@ def ivf_pq_query(
     quant_vecs: np.ndarray,
     id_groups: dict,
     n_probe: int = 8,
+    layout: str | None = None,
 ):
+    query = apply_layout(np.asarray(query), layout)
     # N = labels.shape[0]
 
     diff = quant_center - query

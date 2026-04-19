@@ -5,6 +5,7 @@ import numpy as np
 # print("max threads:", faiss.omp_get_max_threads())
 
 # from ivf_pq.util.kmeans import kmeans_with_ids
+from ivf_pq.layout import apply_layout
 from ivf_pq.util.kmeans import faiss_kmeans_with_ids as kmeans_with_ids
 from tqdm import tqdm
 
@@ -20,7 +21,9 @@ def ivf_pq_learn(
     K=256,
     random_state: int | None = 0,
     cluster_bound: int | None = None,
+    layout: str | None = None,
 ):
+    vecs = apply_layout(np.asarray(vecs), layout)
     N, D = vecs.shape
 
     d = D // M
@@ -84,7 +87,9 @@ def zk_ivf_pq_query(
     quant_vecs,
     id_groups,
     n_probe=8,
+    layout: str | None = None,
 ):
+    query = apply_layout(np.asarray(query), layout)
     max_sz = upperbound(id_groups, n_probe=n_probe)
     M, K, _ = code_books.shape
     diff = query - center  # (n, d)，广播减法

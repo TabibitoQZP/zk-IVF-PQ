@@ -1,5 +1,6 @@
 import numpy as np
 
+from ivf_pq.layout import apply_layout
 from ivf_pq.zk import ivf_pq_learn, upperbound
 from zk_IVF_PQ.zk_IVF_PQ import py_set_based_with_merkle, single_hash
 
@@ -55,6 +56,7 @@ def zk_ivf_pq_query(
     top_k: int = 10,
     n_probe: int = 8,
     proof: bool = False,
+    layout: str | None = None,
 ):
     """
     IVF-PQ 查询。
@@ -62,7 +64,7 @@ def zk_ivf_pq_query(
     - 当 proof=False 时，仅执行近似检索（不构造 Merkle 结构、不生成证明）。
     - 当 proof=True 时，构造带 Merkle 承诺的 set-based 证明系统所需的结构，并返回证明指标。
     """
-    query = np.asarray(query, dtype=np.int64)
+    query = apply_layout(np.asarray(query, dtype=np.int64), layout)
     center = np.asarray(center, dtype=np.int64)
     code_books = np.rint(code_books).astype(np.int64)
     quant_vecs = np.asarray(quant_vecs, dtype=np.int64)
