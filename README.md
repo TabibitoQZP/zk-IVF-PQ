@@ -1,5 +1,9 @@
 # zk-IVF-PQ
 
+## Technical Note
+
+Implementation details are provided in our [technical note](Technical_Details_of_V3DB.pdf).
+
 ## Build
 
 Build and install the Python extension:
